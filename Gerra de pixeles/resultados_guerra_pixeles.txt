@@ -1,0 +1,33 @@
+============================================================
+RESUMEN DE LA GUERRA DE PÍXELES - TURNO FINAL: 1000
+============================================================
+RESULTADO FINAL: GANADOR: Comandante
+PROBABILIDAD COMBATE BASE: 0.5
+------------------------------------------------------------
+
+JUGADOR 1 - Comandante (RGB: (0, 150, 150))
+  > Fichas TOTALES Finales: 2625
+  > Fichas PERFECTAS Finales: 507
+  > Estadísticas de Acción:
+    - Multiplicaciones: 578
+    - Movimientos: 269062
+    - Victorias en Combate: 72933
+--------------------
+
+JUGADOR 2 - IA 1 (RGB: (200, 20, 20))
+  > Fichas TOTALES Finales: 0
+  > Fichas PERFECTAS Finales: 0
+  > Estadísticas de Acción:
+    - Multiplicaciones: 898
+    - Movimientos: 420
+    - Victorias en Combate: 73095
+--------------------
+
+JUGADOR 3 - IA 2 (RGB: (20, 20, 200))
+  > Fichas TOTALES Finales: 0
+  > Fichas PERFECTAS Finales: 0
+  > Estadísticas de Acción:
+    - Multiplicaciones: 455
+    - Movimientos: 133
+    - Victorias en Combate: 14669
+--------------------
