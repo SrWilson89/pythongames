@@ -31,7 +31,13 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "nombre": "Rayo de Escarcha",
         "max_nivel": 5,
         "descripcion_base": "El rayo congela más tiempo.",
-        # niveles completos aquí cuando los tengas
+        "niveles": [ # Relleno de niveles para evitar errores
+            {"damage": 10, "freeze_duration": 500, "cooldown": 3000},
+            {"damage": 12, "freeze_duration": 600, "cooldown": 2800},
+            {"damage": 14, "freeze_duration": 700, "cooldown": 2600},
+            {"damage": 16, "freeze_duration": 800, "cooldown": 2400},
+            {"damage": 20, "freeze_duration": 900, "cooldown": 2200},
+        ],
     },
     3: {
         "nombre": "Aura de Fuego",
@@ -64,7 +70,12 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "nombre": "Escudo Defensivo",
         "max_nivel": 4,
         "descripcion_base": "Aumenta la duración del escudo.",
-        # niveles completos aquí
+        "niveles": [ # Relleno de niveles para evitar errores
+            {"defense_boost": 5, "duration": 3000, "cooldown": 15000},
+            {"defense_boost": 8, "duration": 3500, "cooldown": 14000},
+            {"defense_boost": 10, "duration": 4000, "cooldown": 13000},
+            {"defense_boost": 12, "duration": 5000, "cooldown": 12000},
+        ],
     },
 }
 
@@ -94,10 +105,6 @@ def obtener_opciones_subida_nivel(
 ) -> List[Option]:
     """
     Genera `num_opciones` opciones únicas para subir de nivel.
-
-    - Prioriza mejoras si hay habilidades mejorables.
-    - Usa `prob_mejora` para decidir cuándo elegir una mejora vs nueva.
-    - Garantiza que no se repitan (id, tipo).
     """
     opciones: List[Option] = []
     usadas = set()  # (id, tipo)
@@ -145,14 +152,3 @@ def describir_opcion(opcion: Option) -> str:
     nivel = 1 if tipo == "Nueva" else None  # se calcula después
     prefijo = "NUEVA →" if tipo == "Nueva" else "MEJORA →"
     return f"{prefijo} {hab['nombre']}"
-
-# -------------------------------------------------
-# EJEMPLO RÁPIDO (descomenta para probar)
-# -------------------------------------------------
-if __name__ == "__main__":
-    # Simulamos un jugador con Daga (nivel 3) y Aura (nivel 2)
-    activas = {1: 3, 3: 2}
-    print("Opciones generadas:")
-    for _ in range(5):
-        ops = obtener_opciones_subida_nivel(activas)
-        print(" •", " | ".join(describir_opcion(o) for o in ops))

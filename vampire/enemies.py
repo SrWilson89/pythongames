@@ -1,53 +1,41 @@
 # enemies.py
-
 import pygame
-from config import TILE_SIZE, GREEN, RED, BLACK
-from experience_orb import ExperienceOrb 
+import math
+from config import TILE_SIZE, RED, WHITE
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y, player, groups_to_join, game_groups_ref): 
-        super().__init__(groups_to_join) 
-
-        # 1. Configuración Visual (Pixel Art)
+    def __init__(self, x, y, target, groups):
+        super().__init__(groups)
+        
+        self.target = target
+        self.health = 10
+        self.speed = 1.5 
+        
+        # Carga y escala el sprite del enemigo
         try:
-            # CORRECCIÓN: Usar convert_alpha() para transparencia
-            self.image = pygame.image.load("assets/sprites/enemy.png").convert_alpha()
-            self.image = pygame.transform.scale(self.image, (TILE_SIZE, TILE_SIZE))
+            original_image = pygame.image.load("assets/sprites/enemy.png").convert_alpha()
+            self.image = pygame.transform.scale(original_image, (TILE_SIZE, TILE_SIZE))
         except pygame.error:
             self.image = pygame.Surface((TILE_SIZE, TILE_SIZE))
-            self.image.fill(RED) 
+            self.image.fill(RED) # Fallback rojo
             
-        self.rect = self.image.get_rect(topleft=(x, y))
-
-        # 2. Estadísticas
-        self.speed = 1
-        self.health = 5
-        self.exp_value = 1 
-        self.player = player 
-        self.game_groups_ref = game_groups_ref 
-
+        self.rect = self.image.get_rect(center=(x, y))
+        self.pos = pygame.math.Vector2(self.rect.center)
+        
     def update(self):
-        """Mueve al enemigo hacia la posición del jugador."""
+        """Mueve al enemigo hacia el jugador."""
         
-        player_pos = self.player.rect.center
+        target_pos = pygame.math.Vector2(self.target.rect.center)
+        direction = target_pos - self.pos
         
-        dx = player_pos[0] - self.rect.centerx
-        dy = player_pos[1] - self.rect.centery
-        
-        dist = (dx**2 + dy**2)**0.5
-        
-        if dist > 0:
-            self.rect.x += (dx / dist) * self.speed
-            self.rect.y += (dy / dist) * self.speed
-
-    def take_damage(self, damage):
-        self.health -= damage
+        if direction.length_squared() > 0:
+            direction = direction.normalize()
+            self.pos += direction * self.speed
+            self.rect.center = (int(self.pos.x), int(self.pos.y))
+            
+    def take_damage(self, amount):
+        self.health -= amount
         if self.health <= 0:
-            self.kill() 
-            # Generar el orbe de EXP al morir
-            ExperienceOrb(
-                self.rect.centerx, 
-                self.rect.centery, 
-                self.exp_value, 
-                (self.game_groups_ref.get('all_sprites'), self.game_groups_ref.get('experience_orbs')) 
-            )
+            self.kill()
+            return True # Retorna True si muere
+        return False

@@ -1,17 +1,20 @@
 # ui.py
-
 import pygame
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, BLACK, WHITE, GREEN
-from abilities import HABILIDADES_MAESTRAS, obtener_opciones_subida_nivel
+from config import SCREEN_WIDTH, SCREEN_HEIGHT, BLACK, WHITE, GREEN, RED, BLUE
+from abilities import HABILIDADES_MAESTRAS, describir_opcion, obtener_opciones_subida_nivel
+
+# --- CLASE: MENU DE SUBIDA DE NIVEL ---
 
 class LevelUpMenu:
     def __init__(self, player):
         self.player = player
         self.is_active = False
-        self.options = []
-        self.font = pygame.font.Font(None, 36) 
+        self.font_title = pygame.font.Font(None, 60)
+        self.font_option = pygame.font.Font(None, 40)
+        self.options = [] # Lista de tuplas (id, tipo)
         self.current_selection = 0
         
+        # Definición del área del menú
         self.rect = pygame.Rect(
             SCREEN_WIDTH // 4, 
             SCREEN_HEIGHT // 4, 
@@ -20,102 +23,148 @@ class LevelUpMenu:
         )
 
     def activate(self):
-        """Prepara y muestra el menú."""
         self.is_active = True
         self.current_selection = 0
-        self.generate_options()
+        # ¡CORRECCIÓN CLAVE 1: OBTENER OPCIONES REALES!
+        self.options = obtener_opciones_subida_nivel(self.player.active_abilities)
+
+    def deactivate(self):
+        self.is_active = False
+        
+    def handle_input(self, event):
+        """Maneja la navegación, selección y aplicación de mejoras."""
+        if not self.is_active:
+            return None
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                self.current_selection = (self.current_selection - 1) % len(self.options)
+            elif event.key == pygame.K_DOWN:
+                self.current_selection = (self.current_selection + 1) % len(self.options)
+                
+            elif event.key == pygame.K_RETURN:
+                if self.options:
+                    chosen_option = self.options[self.current_selection]
+                    self.player.apply_ability_choice(chosen_option)
+                    self.deactivate()
+                    return "chosen"
+                
+        return None
+        
+    def draw(self, surface):
+        """Dibuja el menú de subida de nivel sobre el juego."""
+        if not self.is_active:
+            return
+            
+        # Dibuja un fondo semi-transparente
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180)) 
+        surface.blit(overlay, (0, 0))
+        
+        # Dibuja el marco del menú
+        pygame.draw.rect(surface, BLACK, self.rect, 0)
+        pygame.draw.rect(surface, WHITE, self.rect, 5)
+
+        # Título
+        title_text = self.font_title.render("¡SUBIDA DE NIVEL!", True, GREEN)
+        surface.blit(title_text, (self.rect.centerx - title_text.get_width() // 2, self.rect.top + 30))
+        
+        y_offset = self.rect.top + 120
+        
+        # Opciones
+        for i, option in enumerate(self.options):
+            text_line = describir_opcion(option)
+            
+            color = WHITE
+            # Resaltar la opción seleccionada
+            if i == self.current_selection:
+                color = GREEN
+                pygame.draw.rect(surface, (50, 50, 50), (self.rect.left + 20, y_offset - 5, self.rect.width - 40, 50), 0)
+
+            option_text = self.font_option.render(text_line, True, color)
+            surface.blit(option_text, (self.rect.left + 50, y_offset))
+            y_offset += 60
+
+# --- CLASE: MENU DE PAUSA (Se mantiene igual, solo se actualiza la fuente) ---
+
+class PauseMenu:
+    def __init__(self, surface):
+        self.surface = surface
+        self.is_active = False
+        self.font = pygame.font.Font(None, 48)
+        self.options = ["Reanudar", "Ajustes de Sonido", "Salir del Juego"]
+        self.current_selection = 0
+        
+        self.rect = pygame.Rect(
+            SCREEN_WIDTH // 3, 
+            SCREEN_HEIGHT // 4, 
+            SCREEN_WIDTH // 3, 
+            SCREEN_HEIGHT // 2
+        )
+        
+        if not pygame.mixer.get_init():
+             pygame.mixer.init() 
+        self.is_muted = False
+
+    def activate(self):
+        self.is_active = True
+        self.current_selection = 0
 
     def deactivate(self):
         self.is_active = False
 
-    def generate_options(self):
-        """Genera las 3 opciones de habilidad."""
-        self.options = obtener_opciones_subida_nivel(self.player.active_abilities)
-        self.options.append(("Skip", "Skip"))
-
     def handle_input(self, event):
-        """Maneja la selección del jugador."""
         if not self.is_active:
-            return False
+            return None
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
-                self.current_selection = max(0, self.current_selection - 1)
+                self.current_selection = (self.current_selection - 1) % len(self.options)
             elif event.key == pygame.K_DOWN:
-                self.current_selection = min(len(self.options) - 1, self.current_selection + 1)
+                self.current_selection = (self.current_selection + 1) % len(self.options)
                 
             elif event.key == pygame.K_RETURN:
-                return self._select_option()
+                if self.current_selection == 0:
+                    return "unpause" 
+                elif self.current_selection == 1:
+                    self.is_muted = not self.is_muted
+                    if self.is_muted:
+                        pygame.mixer.music.set_volume(0.0)
+                        for sound_id in range(pygame.mixer.get_num_channels()):
+                            pygame.mixer.Channel(sound_id).set_volume(0.0)
+                    else:
+                        pygame.mixer.music.set_volume(1.0) 
+                        for sound_id in range(pygame.mixer.get_num_channels()):
+                            pygame.mixer.Channel(sound_id).set_volume(1.0)
+                            
+                elif self.current_selection == 2:
+                    return "quit"   
+                
+        return None
 
-        return False
-
-    def _select_option(self):
-        """Procesa la opción elegida."""
-        opcion_elegida = self.options[self.current_selection]
-        id_elegida, tipo_elegido = opcion_elegida
-        
-        if tipo_elegido == "Skip":
-            if self.player.skips_restantes > 0:
-                self.player.skips_restantes -= 1
-                self.generate_options() 
-            else:
-                print("No quedan skips gratis.")
-            return True 
-        
-        else: 
-            nivel_actual = self.player.active_abilities.get(id_elegida, 0)
-            
-            # Si el Aura de Fuego (ID 3) acaba de ser seleccionada, la creamos
-            if id_elegida == 3 and nivel_actual == 0:
-                # Retorna un valor especial que main.py usará para crear el sprite del aura
-                self.player.active_abilities[id_elegida] = nivel_actual + 1
-                self.deactivate()
-                return "AuraCreated" 
-            
-            self.player.active_abilities[id_elegida] = nivel_actual + 1
-            self.deactivate()
-            return False 
-            
     def draw(self, surface):
-        """Dibuja el menú de selección."""
         if not self.is_active:
             return
 
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180)) 
+        overlay.fill((0, 0, 0, 150)) 
         surface.blit(overlay, (0, 0))
 
         pygame.draw.rect(surface, BLACK, self.rect, 0)
-        pygame.draw.rect(surface, WHITE, self.rect, 3)
+        pygame.draw.rect(surface, WHITE, self.rect, 5)
 
-        y_offset = self.rect.top + 20
-        title_text = self.font.render("¡SUBIDA DE NIVEL!", True, WHITE)
+        y_offset = self.rect.top + 40
+        title_text = self.font.render("JUEGO EN PAUSA", True, WHITE)
         surface.blit(title_text, (self.rect.centerx - title_text.get_width() // 2, y_offset))
-        y_offset += 50
+        y_offset += 80
         
-        for i, (id_habilidad, tipo) in enumerate(self.options):
-            
+        for i, text_base in enumerate(self.options):
             color = GREEN if i == self.current_selection else WHITE
+            text = text_base
             
-            if tipo == "Skip":
-                text = f"[S] Saltar (Skips: {self.player.skips_restantes})"
-                
-            else:
-                nombre = HABILIDADES_MAESTRAS[id_habilidad]["nombre"]
-                max_nivel = HABILIDADES_MAESTRAS[id_habilidad]["max_nivel"]
-                nivel_actual = self.player.active_abilities.get(id_habilidad, 0)
-                
-                if tipo == "Mejora":
-                    info = f"Mejorar a Nivel {nivel_actual + 1}/{max_nivel}"
-                else:
-                    info = f"Obtener (Nivel 1/{max_nivel})"
-                    
-                text = f"[{i+1}] {nombre} - {info}"
+            if i == 1:
+                text = f"Ajustes de Sonido: {'MUTEADO' if self.is_muted else 'ACTIVO'}"
 
             option_text = self.font.render(text, True, color)
-            surface.blit(option_text, (self.rect.left + 20, y_offset))
-            y_offset += 40
-            
-        if self.current_selection < len(self.options) - 1:
-            pointer = self.font.render(">", True, GREEN)
-            surface.blit(pointer, (self.rect.left, self.rect.top + 50 + self.current_selection * 40))
+            surface.blit(option_text, (self.rect.left + 50, y_offset))
+            y_offset += 60

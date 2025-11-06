@@ -7,15 +7,21 @@ class Projectile(pygame.sprite.Sprite):
     def __init__(self, x, y, direction_vector, damage, groups):
         super().__init__(groups)
         
-        # 1. Configuración Visual (Carga del PNG)
+        # 1. Configuración Visual (Carga del PNG y ESCALADO)
+        SPRITE_W = TILE_SIZE  
+        SPRITE_H = TILE_SIZE // 2 
+        
         try:
-            # CARGAMOS EL SPRITE DE LA DAGA
-            self.image = pygame.image.load("assets/sprites/dagger.png").convert_alpha() 
-            # Re-escalamos al tamaño del sprite original
-            self.image = pygame.transform.scale(self.image, (TILE_SIZE, TILE_SIZE // 2)) 
+            original_image = pygame.image.load("assets/sprites/dagger.png").convert_alpha() 
+            self.image = pygame.transform.scale(original_image, (SPRITE_W, SPRITE_H))
+            
+            # Rotar la imagen para que apunte en la dirección
+            # Rotamos la imagen de forma que apunte hacia el vector (1, 0)
+            angle = pygame.math.Vector2(direction_vector).angle_to(pygame.math.Vector2(1, 0))
+            self.image = pygame.transform.rotate(self.image, angle) 
+            
         except pygame.error:
-            # Fallback a un rectángulo blanco si no se encuentra el PNG
-            self.image = pygame.Surface((TILE_SIZE, TILE_SIZE // 2)) 
+            self.image = pygame.Surface((SPRITE_W, SPRITE_H)) 
             self.image.fill((255, 255, 255))
             
         self.rect = self.image.get_rect(center=(x, y))

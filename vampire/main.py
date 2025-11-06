@@ -1,24 +1,26 @@
 # main.py
-
 import pygame
 import sys
 import random
-import math 
-
-# Importar todos los módulos creados
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE, BLACK, WHITE
+import math
+from config import (
+    SCREEN_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE, 
+    BLACK, WHITE, RED, TILE_SIZE
+)
 from player import Player
 from enemies import Enemy
-from ui import LevelUpMenu
-from abilities import HABILIDADES_MAESTRAS
 from projectile import Projectile
-from experience_orb import ExperienceOrb 
-from area_ability import AreaAbility 
-from bumerang import Bumerang # <-- NUEVA IMPORTACIÓN
+from bumerang import Bumerang
+from area_ability import AreaAbility
+from experience_orb import ExperienceOrb
+from ui import LevelUpMenu, PauseMenu
+from abilities import HABILIDADES_MAESTRAS
 
 # --- Inicialización ---
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+# Re-inicializamos Pygame para asegurar que esté listo para el bucle principal
+pygame.init() 
+
+screen = pygame.display.set_mode(SCREEN_SIZE, pygame.FULLSCREEN) 
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
 
@@ -26,175 +28,180 @@ clock = pygame.time.Clock()
 all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
 projectiles = pygame.sprite.Group()
-experience_orbs = pygame.sprite.Group() 
-area_abilities = pygame.sprite.Group() 
-
-# Diccionario de grupos para pasarlo a los enemigos
-GAME_GROUPS = {
-    'all_sprites': all_sprites,
-    'enemies': enemies,
-    'projectiles': projectiles,
-    'experience_orbs': experience_orbs,
-    'area_abilities': area_abilities 
-}
+bumerangs = pygame.sprite.Group()
+area_abilities = pygame.sprite.Group()
+orbs = pygame.sprite.Group()
 
 # --- Creación de Objetos ---
 player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 all_sprites.add(player)
 
-enemy1 = Enemy(100, 100, player, (all_sprites, enemies), GAME_GROUPS) 
-
-# Inicializar el Menú de Nivel
+# Inicializar Menús
 level_up_menu = LevelUpMenu(player)
+pause_menu = PauseMenu(screen) 
 
-# ⭐️ LÓGICA DE INICIO: Asignar TRES habilidades iniciales únicas al Nivel 1
-ids_disponibles = list(HABILIDADES_MAESTRAS.keys())
-if len(ids_disponibles) >= 3:
-    habilidades_iniciales = random.sample(ids_disponibles, 3) 
-else:
-    habilidades_iniciales = ids_disponibles
+# --- Variables del Juego ---
+last_enemy_spawn = pygame.time.get_ticks() 
+SPAWN_RATE = 1000 
+game_state = "playing" # Estado: "playing", "paused", "level_up"
 
-for h_id in habilidades_iniciales:
-    player.active_abilities[h_id] = 1 # Asigna Nivel 1 a las tres
+# --- Funciones de Lógica ---
 
-# Inicializar el Aura de Fuego si fue seleccionada
-if 3 in player.active_abilities:
-    params = HABILIDADES_MAESTRAS[3]["niveles"][0]
-    new_aura = AreaAbility(
-        player, 
-        3, 
-        params["damage"], 
-        params["radius"], 
-        params["cooldown"],
-        (all_sprites, area_abilities)
-    )
-    player.aura_fuego_active = new_aura
+def spawn_enemy(last_spawn_time):
+    """Genera un enemigo fuera de la pantalla."""
+    current_time = pygame.time.get_ticks()
+    
+    if current_time - last_spawn_time > SPAWN_RATE:
+        side = random.choice(["top", "bottom", "left", "right"])
+        padding = TILE_SIZE * 2
+        
+        if side == "top":
+            x = random.randint(0, SCREEN_WIDTH)
+            y = -padding
+        elif side == "bottom":
+            x = random.randint(0, SCREEN_WIDTH)
+            y = SCREEN_HEIGHT + padding
+        elif side == "left":
+            x = -padding
+            y = random.randint(0, SCREEN_HEIGHT)
+        else: # right
+            x = SCREEN_WIDTH + padding
+            y = random.randint(0, SCREEN_HEIGHT)
+            
+        Enemy(x, y, player, (all_sprites, enemies))
+        return current_time # Retorna el nuevo tiempo de spawn
+    return last_spawn_time
+
 
 # --- Bucle Principal del Juego ---
 running = True
-last_enemy_spawn = pygame.time.get_ticks() 
-SPAWN_RATE = 1000 
 
 while running:
     
+    current_mouse_pos = pygame.mouse.get_pos()
+
     # 1. Manejo de Eventos
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-            
-        if level_up_menu.is_active:
+        
+        # Manejo de la tecla ESCAPE
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if game_state == "playing" or game_state == "level_up":
+                game_state = "paused"
+                pause_menu.activate()
+            elif game_state == "paused":
+                game_state = "playing"
+                pause_menu.deactivate()
+
+        # Input del menú de pausa
+        if game_state == "paused":
+            action = pause_menu.handle_input(event)
+            if action == "unpause":
+                game_state = "playing"
+                pause_menu.deactivate()
+            elif action == "quit":
+                running = False
+                
+        # Input del menú de nivel
+        elif game_state == "level_up":
             result = level_up_menu.handle_input(event)
-            
-            if result == "AuraCreated":
-                if player.aura_fuego_active is None:
-                    params = HABILIDADES_MAESTRAS[3]["niveles"][0]
-                    new_aura = AreaAbility(
-                        player, 
-                        3, 
-                        params["damage"], 
-                        params["radius"], 
-                        params["cooldown"],
-                        (all_sprites, area_abilities)
-                    )
-                    player.aura_fuego_active = new_aura 
+            if result == "chosen":
+                game_state = "playing"
+
+        # El jugador solo actualiza la posición del ratón si NO estamos en un menú
+        if game_state != "level_up":
+            player.update_mouse_pos(current_mouse_pos)
             
     # 2. Actualización (Lógica del Juego)
-    if not level_up_menu.is_active:
+    if game_state == "playing":
         
-        # 2a. Movimiento y Actualización del Jugador
+        # 2a. Spawner de Enemigos
+        last_enemy_spawn = spawn_enemy(last_enemy_spawn)
+        
+        # 2b. Actualización del Jugador y Sprites
         keys = pygame.key.get_pressed()
+        
+        # --- CORRECCIÓN CLAVE ---
+        # 1. ACTUALIZA AL JUGADOR PRIMERO, PASÁNDOLE LAS TECLAS
         attack_info = player.update(keys) 
-
-        # 2b. Lanzar Ataques y Habilidades
+        
+        # 2. ACTUALIZA EL RESTO DE SPRITES
+        # Solo actualizamos grupos que NO necesitan argumentos especiales como 'keys'
+        enemies.update()
+        projectiles.update()
+        bumerangs.update()
+        area_abilities.update()
+        orbs.update()
+        
+        # 2c. Lanzar Ataques y Habilidades
         if attack_info: 
             if attack_info.get("type") == "AuraFuego":
-                 if player.aura_fuego_active:
-                     player.aura_fuego_active._update_visuals()
+                if len(area_abilities) == 0:
+                    AreaAbility(
+                        player, 
+                        attack_info["damage"], 
+                        attack_info["radius"], 
+                        attack_info["cooldown"], 
+                        (all_sprites, area_abilities)
+                    )
 
             elif attack_info.get("type") == "Projectile":
-                # Daga Rápida
                 damage = attack_info["damage"]
-                count = attack_info["count"]
+                directions = attack_info["directions"] 
                 
-                for _ in range(count):
-                    angle = random.uniform(0, 2 * math.pi) 
-                    direction_vector = pygame.math.Vector2(math.cos(angle), math.sin(angle))
-                    
+                for direction in directions:
                     Projectile(
                         player.rect.centerx, 
                         player.rect.centery, 
-                        direction_vector, 
+                        direction,
                         damage, 
                         (all_sprites, projectiles)
                     )
 
             elif attack_info.get("type") == "Bumerang":
-                # Bumerán Gigante
-                params = attack_info["params"]
-                for _ in range(params["count"]):
+                for _ in range(attack_info["count"]):
                     Bumerang(
                         player,
-                        params["damage"],
-                        params["speed"],
-                        params["lifetime"],
-                        (all_sprites, projectiles) 
+                        attack_info["damage"],
+                        attack_info["speed"],
+                        attack_info["lifetime"],
+                        (all_sprites, bumerangs)
                     )
-
-        # 2c. Actualizar Enemigos, Proyectiles, Orbes y Auras
-        enemies.update() 
-        projectiles.update() 
-        experience_orbs.update(player) 
-        area_abilities.update(enemies) 
-
-        # 2d. Spawning de Enemigos
-        current_time = pygame.time.get_ticks()
-        if current_time - last_enemy_spawn > SPAWN_RATE:
-            spawn_x = random.choice([-50, SCREEN_WIDTH + 50])
-            spawn_y = random.randint(0, SCREEN_HEIGHT)
-            new_enemy = Enemy(spawn_x, spawn_y, player, (all_sprites, enemies), GAME_GROUPS) 
-            last_enemy_spawn = current_time
-
-        # 2e. Colisiones (Daño al Enemigo)
-        for projectile in projectiles:
-            hit_enemies = pygame.sprite.spritecollide(projectile, enemies, False) 
+                    
+        # 2d. Chequeo de Colisiones
+        hits = pygame.sprite.groupcollide(projectiles, enemies, True, False)
+        for projectile, hit_enemies in hits.items():
             for enemy in hit_enemies:
-                enemy.take_damage(projectile.damage)
-                # Solo la Daga (Projectile) se mata al impactar. El Bumerán sigue vivo.
-                if isinstance(projectile, Projectile):
-                    projectile.kill() 
+                if enemy.take_damage(projectile.damage):
+                    ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (all_sprites, orbs))
+                    
+        pygame.sprite.groupcollide(bumerangs, enemies, False, False)
+        
+        orb_hits = pygame.sprite.spritecollide(player, orbs, True)
+        for orb in orb_hits:
+            if player.add_experience(orb.amount):
+                game_state = "level_up"
+                level_up_menu.activate()
 
-        # 2f. Colisiones (Recolección de EXP)
-        collected_orbs = pygame.sprite.spritecollide(player, experience_orbs, True) 
-        for orb in collected_orbs:
-            if player.gain_exp(orb.value):
-                level_up_menu.activate() 
 
     # 3. Dibujo
     screen.fill(BLACK) 
     all_sprites.draw(screen) 
-
+    
     # Dibujar HUD (Interfaz de usuario)
-    font_small = pygame.font.Font(None, 20) 
-    
-    # HUD de Nivel y EXP
-    level_text = font_small.render(f"Nivel: {player.level} | EXP: {player.exp}/{player.next_level_exp}", True, WHITE)
-    screen.blit(level_text, (10, 10))
-    
-    # HUD de Habilidades activas
-    y_hab = 30
-    habilidades_string = "Habilidades: "
-    for id_h, nivel in player.active_abilities.items():
-        nombre = HABILIDADES_MAESTRAS[id_h]["nombre"]
-        habilidades_string += f"{nombre[0]}-Lv{nivel} | " 
-    
-    if habilidades_string != "Habilidades: ":
-        hab_text = font_small.render(habilidades_string, True, WHITE)
-        screen.blit(hab_text, (10, y_hab))
+    font = pygame.font.Font(None, 36)
+    text = font.render(f"Nivel: {player.level} | EXP: {player.experience}", True, WHITE)
+    screen.blit(text, (10, 10))
 
-    # Dibujar el menú de subida de nivel (si está activo)
-    level_up_menu.draw(screen)
+
+    # 4. Dibujar Menús
+    if game_state == "level_up":
+        level_up_menu.draw(screen)
+    elif game_state == "paused":
+        pause_menu.draw(screen)
     
-    # 4. Finalizar Frame
+    # 5. Finalizar Frame
     pygame.display.flip()
     clock.tick(FPS)
 
