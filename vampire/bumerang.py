@@ -5,7 +5,7 @@ import math
 import random
 from config import TILE_SIZE
 
-class Bumerang(pygame.sprite.Sprite): # Asegúrate de que la clase esté definida correctamente.
+class Bumerang(pygame.sprite.Sprite): 
     def __init__(self, player, damage, speed, lifetime, groups):
         super().__init__(groups)
         
@@ -31,6 +31,7 @@ class Bumerang(pygame.sprite.Sprite): # Asegúrate de que la clase esté definid
         
         # 2. Lógica de Movimiento
         self.pos = pygame.math.Vector2(self.rect.center)
+        # Dirección inicial (aleatoria para variabilidad)
         angle = random.uniform(0, 2 * math.pi)
         self.direction = pygame.math.Vector2(math.cos(angle), math.sin(angle))
         
@@ -56,17 +57,22 @@ class Bumerang(pygame.sprite.Sprite): # Asegúrate de que la clase esté definid
             
             if self.timer >= self.lifetime_max:
                 self.returning = True
-                self.timer = 0 
+                self.timer = 0 # Reiniciar el timer si se quiere limitar la fase de regreso
                 
         else:
             # Fase 2: Regresar
             player_pos = pygame.math.Vector2(self.player.rect.center)
             to_player = player_pos - self.pos
             
-            if to_player.length() > self.speed:
-                self.direction = to_player.normalize()
-                self.pos += self.direction * self.speed
+            if to_player.length_squared() > 0:
+                # Normalizar la dirección hacia el jugador
+                to_player = to_player.normalize()
+                self.pos += to_player * self.speed
+                
+                # Comprobar si ha llegado al jugador
+                if self.pos.distance_to(player_pos) < TILE_SIZE / 2: 
+                    self.kill() # Eliminar al volver
             else:
-                self.kill()
-        
+                 self.kill() # Eliminar si está exactamente encima del jugador
+            
         self.rect.center = (int(self.pos.x), int(self.pos.y))

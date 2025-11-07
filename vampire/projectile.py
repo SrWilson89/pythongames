@@ -29,15 +29,15 @@ class Projectile(pygame.sprite.Sprite):
         # 2. Estadísticas
         self.damage = damage
         self.speed = 10 
-        self.lifetime = 120 
+        self.lifetime = 120 # En frames
         self.timer = 0
         
         # 3. Movimiento
         self.direction = direction_vector
-        self.pos = pygame.math.Vector2(self.rect.center) 
-
+        self.pos = pygame.math.Vector2(self.rect.center)
+        
     def update(self):
-        """Mueve el proyectil y comprueba su tiempo de vida."""
+        """Mueve el proyectil y lo elimina tras su tiempo de vida."""
         
         self.pos += self.direction * self.speed
         self.rect.center = (int(self.pos.x), int(self.pos.y))

@@ -1,0 +1,7 @@
+--- INICIO DE SESIÓN DE JUEGO (revision.txt) ---
+Traceback (most recent call last):
+  File "C:\Users\srwil\Documents\VSC\python\vampire\main.py", line 252, in <module>
+    ability.draw(screen) 
+    ^^^^^^^^^^^^
+AttributeError: 'AreaAbility' object has no attribute 'draw'
+  

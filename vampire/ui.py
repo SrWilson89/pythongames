@@ -25,7 +25,7 @@ class LevelUpMenu:
     def activate(self):
         self.is_active = True
         self.current_selection = 0
-        # ¡CORRECCIÓN CLAVE 1: OBTENER OPCIONES REALES!
+        # OBTENER OPCIONES REALES
         self.options = obtener_opciones_subida_nivel(self.player.active_abilities)
 
     def deactivate(self):
@@ -35,101 +35,100 @@ class LevelUpMenu:
         """Maneja la navegación, selección y aplicación de mejoras."""
         if not self.is_active:
             return None
-
+            
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
                 self.current_selection = (self.current_selection - 1) % len(self.options)
             elif event.key == pygame.K_DOWN:
                 self.current_selection = (self.current_selection + 1) % len(self.options)
-                
             elif event.key == pygame.K_RETURN:
-                if self.options:
-                    chosen_option = self.options[self.current_selection]
-                    self.player.apply_ability_choice(chosen_option)
-                    self.deactivate()
-                    return "chosen"
+                # Aplicar la mejora y cerrar el menú
+                chosen_option = self.options[self.current_selection]
+                self.player.apply_ability_choice(chosen_option)
+                return "closed"
                 
         return None
-        
+
     def draw(self, surface):
-        """Dibuja el menú de subida de nivel sobre el juego."""
         if not self.is_active:
             return
-            
-        # Dibuja un fondo semi-transparente
+
+        # Capa semi-transparente
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180)) 
+        overlay.fill((0, 0, 0, 180)) # Más oscuro para que se note
         surface.blit(overlay, (0, 0))
-        
-        # Dibuja el marco del menú
+
+        # Marco del menú
         pygame.draw.rect(surface, BLACK, self.rect, 0)
         pygame.draw.rect(surface, WHITE, self.rect, 5)
 
-        # Título
+        y_offset = self.rect.top + 40
         title_text = self.font_title.render("¡SUBIDA DE NIVEL!", True, GREEN)
-        surface.blit(title_text, (self.rect.centerx - title_text.get_width() // 2, self.rect.top + 30))
+        surface.blit(title_text, (self.rect.centerx - title_text.get_width() // 2, y_offset))
+        y_offset += 80
         
-        y_offset = self.rect.top + 120
-        
-        # Opciones
+        # Dibujar opciones
         for i, option in enumerate(self.options):
-            text_line = describir_opcion(option)
+            # PASAR active_abilities a describir_opcion
+            text_line = describir_opcion(option, self.player.active_abilities) 
             
-            color = WHITE
-            # Resaltar la opción seleccionada
+            color = GREEN if i == self.current_selection else WHITE
+            
+            # Dibujar el rectángulo de selección
+            option_rect = pygame.Rect(self.rect.left + 20, y_offset, self.rect.width - 40, 60)
             if i == self.current_selection:
-                color = GREEN
-                pygame.draw.rect(surface, (50, 50, 50), (self.rect.left + 20, y_offset - 5, self.rect.width - 40, 50), 0)
+                pygame.draw.rect(surface, BLUE, option_rect, 0) # Fondo azul
+            pygame.draw.rect(surface, color, option_rect, 2) # Borde
 
-            option_text = self.font_option.render(text_line, True, color)
-            surface.blit(option_text, (self.rect.left + 50, y_offset))
-            y_offset += 60
-
-# --- CLASE: MENU DE PAUSA (Se mantiene igual, solo se actualiza la fuente) ---
+            text_surface = self.font_option.render(text_line, True, color)
+            surface.blit(text_surface, (option_rect.left + 10, option_rect.top + 15))
+            
+            y_offset += 80
+            
+# --- CLASE: MENU DE PAUSA ---
 
 class PauseMenu:
-    def __init__(self, surface):
-        self.surface = surface
+    def __init__(self):
         self.is_active = False
-        self.font = pygame.font.Font(None, 48)
-        self.options = ["Reanudar", "Ajustes de Sonido", "Salir del Juego"]
+        self.font = pygame.font.Font(None, 60)
+        self.options = ["Reanudar", "Silenciar/Activar Sonido", "Salir del Juego"]
         self.current_selection = 0
         
         self.rect = pygame.Rect(
-            SCREEN_WIDTH // 3, 
+            SCREEN_WIDTH // 4, 
             SCREEN_HEIGHT // 4, 
-            SCREEN_WIDTH // 3, 
+            SCREEN_WIDTH // 2, 
             SCREEN_HEIGHT // 2
         )
-        
-        if not pygame.mixer.get_init():
-             pygame.mixer.init() 
-        self.is_muted = False
 
     def activate(self):
         self.is_active = True
         self.current_selection = 0
-
+        
     def deactivate(self):
         self.is_active = False
-
+        
     def handle_input(self, event):
         if not self.is_active:
             return None
-
+            
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_ESCAPE or event.key == pygame.K_p:
+                return "resume"
+            elif event.key == pygame.K_UP:
                 self.current_selection = (self.current_selection - 1) % len(self.options)
             elif event.key == pygame.K_DOWN:
                 self.current_selection = (self.current_selection + 1) % len(self.options)
-                
             elif event.key == pygame.K_RETURN:
+                
                 if self.current_selection == 0:
-                    return "unpause" 
+                    return "resume"
+                    
                 elif self.current_selection == 1:
-                    self.is_muted = not self.is_muted
-                    if self.is_muted:
-                        pygame.mixer.music.set_volume(0.0)
+                    # Lógica de Silenciar/Activar Sonido (Asume que hay música)
+                    if pygame.mixer.music.get_volume() > 0:
+                        pygame.mixer.music.set_volume(0.0) 
+                        # También silencia canales de sonido (si existieran)
                         for sound_id in range(pygame.mixer.get_num_channels()):
                             pygame.mixer.Channel(sound_id).set_volume(0.0)
                     else:
@@ -162,9 +161,11 @@ class PauseMenu:
             color = GREEN if i == self.current_selection else WHITE
             text = text_base
             
-            if i == 1:
-                text = f"Ajustes de Sonido: {'MUTEADO' if self.is_muted else 'ACTIVO'}"
-
-            option_text = self.font.render(text, True, color)
-            surface.blit(option_text, (self.rect.left + 50, y_offset))
+            option_rect = pygame.Rect(self.rect.left + 40, y_offset, self.rect.width - 80, 50)
+            if i == self.current_selection:
+                pygame.draw.rect(surface, RED, option_rect, 0)
+                
+            text_surface = self.font.render(text, True, color)
+            surface.blit(text_surface, (self.rect.centerx - text_surface.get_width() // 2, y_offset + 5))
+            
             y_offset += 60

@@ -34,4 +34,4 @@ BLUE = (0, 0, 200)
 # --- Configuración del Juego ---
 TILE_SIZE = 64  # ¡Tamaño base para sprites (Aumentado de 32 a 64)!
 PLAYER_START_SPEED = 3
-EXPERIENCE_PER_LEVEL = 10
+EXPERIENCE_PER_LEVEL = 2
