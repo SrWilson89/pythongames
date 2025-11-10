@@ -3,8 +3,10 @@ import pygame
 import sys
 import random
 import math
+import os
+from datetime import datetime
 from config import (
-    SCREEN_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE, 
+    SCREEN_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE,
     BLACK, WHITE, RED, TILE_SIZE
 )
 from player import Player
@@ -12,91 +14,140 @@ from enemies import Enemy
 from projectile import Projectile
 from bumerang import Bumerang
 from ray_of_frost import RayOfFrost
-from area_ability import AreaAbility 
+from area_ability import AreaAbility
 from experience_orb import ExperienceOrb
 from ui import LevelUpMenu, PauseMenu
 from abilities import HABILIDADES_MAESTRAS, obtener_opciones_subida_nivel
+from bomb import Bomb  # ¡CORREGIDO!
 
-# --- Inicialización ---
-pygame.init() 
-screen = pygame.display.set_mode(SCREEN_SIZE) 
+# ===== DIAGNÓSTICO AUTOMÁTICO DE SPRITES =====
+def diagnostic_sprites(screen):
+    sprite_dir = "assets/sprites/"
+    expected_sprites = {
+        "player.png": "Jugador",
+        "dagger.png": "Daga",
+        "bumerang.png": "Bumerán",
+        "ice_shard.png": "Rayo de Escarcha",
+        "fire_ring.png": "Aura de Fuego",
+        "experience_orb.png": "Orbe EXP",
+        "granade.png": "Granada/Bomba"
+    }
+
+    results = []
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    results.append(f"=== DIAGNÓSTICO DE SPRITES - {timestamp} ===\n")
+
+    if not os.path.exists(sprite_dir):
+        results.append(f"CRÍTICO: '{sprite_dir}' NO EXISTE\n")
+    else:
+        all_files = os.listdir(sprite_dir)
+        results.append(f"Archivos en '{sprite_dir}': {len(all_files)}\n")
+        for f in sorted(all_files):
+            results.append(f"  • {f}\n")
+        results.append("\n")
+
+        loaded_count = 0
+        missing_count = 0
+
+        for filename, description in expected_sprites.items():
+            path = os.path.join(sprite_dir, filename)
+            if os.path.exists(path):
+                try:
+                    img = pygame.image.load(path).convert_alpha()
+                    w, h = img.get_size()
+                    results.append(f"CARGADO: {description}: {filename} ({w}x{h})\n")
+                    loaded_count += 1
+                except Exception as e:
+                    results.append(f"FALLÓ: {description}: {filename} | ERROR: {e}\n")
+                    missing_count += 1
+            else:
+                results.append(f"FALTANTE: {description} → {filename}\n")
+                missing_count += 1
+
+        results.append("\n")
+        results.append(f"RESUMEN: {loaded_count} CARGADOS | {missing_count} PROBLEMAS\n")
+        results.append("=" * 60 + "\n")
+
+    try:
+        with open("revision.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(results))
+        print(f"DIAGNÓSTICO → 'revision.txt' ({loaded_count}/{len(expected_sprites)})")
+    except Exception as e:
+        print(f"Error guardando: {e}")
+
+# --- INICIALIZACIÓN ---
+pygame.init()
+screen = pygame.display.set_mode(SCREEN_SIZE)
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
 
-# --- Carga del Fondo ---
+# DIAGNÓSTICO (funciona después de la ventana)
+diagnostic_sprites(screen)
+
+# --- FONDO ---
 BACKGROUND_IMAGE_NAME = "Gemini_Generated_Image_uggvxguggvxguggv.png"
 BACKGROUND_IMAGE = None
 try:
-    # Intenta cargar la imagen en la raíz del proyecto
     original_bg = pygame.image.load(BACKGROUND_IMAGE_NAME).convert()
     BACKGROUND_IMAGE = pygame.transform.scale(original_bg, SCREEN_SIZE)
-    print(f"Fondo '{BACKGROUND_IMAGE_NAME}' cargado correctamente.")
+    print(f"Fondo '{BACKGROUND_IMAGE_NAME}' cargado.")
 except pygame.error:
-    print(f"ADVERTENCIA: No se pudo cargar el fondo '{BACKGROUND_IMAGE_NAME}'. Asegúrese de que el archivo está en la carpeta raíz del juego. Usando color negro.")
+    print(f"Fondo no encontrado. Usando negro.")
 
-# --- Grupos de Sprites ---
-all_sprites = pygame.sprite.Group() 
+# --- GRUPOS DE SPRITES ---
+all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
-projectiles = pygame.sprite.Group()
-bumerangs = pygame.sprite.Group()
-ray_of_frosts = pygame.sprite.Group() 
-area_abilities = pygame.sprite.Group()
-orbs = pygame.sprite.Group()
+projectiles = pygame.sprite.Group()      # Dagas
+bumerangs = pygame.sprite.Group()        # Bumerán
+ray_of_frosts = pygame.sprite.Group()    # Rayo de Escarcha
+area_abilities = pygame.sprite.Group()   # Aura de Fuego
+orbs = pygame.sprite.Group()             # Orbes de EXP
+bombs = pygame.sprite.Group()            # Bombas
 
-# --- Creación de Objetos ---
+# --- OBJETOS ---
 player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-
-# --- UI y Estado ---
 level_up_menu = LevelUpMenu(player)
 pause_menu = PauseMenu()
 game_state = "running"
 running = True
 
-# --- Lógica de Juego y Timers ---
-last_fire_damage_time = 0 
-
-# --- PARÁMETROS DE DIFICULTAD Y OLAS ---
+# --- PARÁMETROS DE DIFICULTAD ---
 MAX_ENEMIES_LIMIT = 256
-WAVE_INTERVAL_FRAMES = FPS // 2 # 30 frames para 500ms
-wave_timer = 0 # Temporizador para la nueva lógica de olas
-# ----------------------------------------
+WAVE_INTERVAL_MS = 500
+WAVE_INTERVAL_FRAMES = max(1, (WAVE_INTERVAL_MS * FPS) // 1000)
+wave_timer = 0
 
-# Helper: Busca una instancia de AreaAbility por tipo
+# --- HELPER: Obtener aura activa ---
 def get_area_ability(ability_type):
     for ability in area_abilities:
         if ability.ability_type == ability_type:
             return ability
     return None
 
+# ==================== BUCLE PRINCIPAL ====================
 while running:
-    # 1. Entrada de Eventos
+    # --- EVENTOS ---
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        
-        if game_state == "running":
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                game_state = "paused"
-                pause_menu.activate()
-            
+        elif game_state == "running" and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            game_state = "paused"
+            pause_menu.activate()
         elif game_state == "paused":
             result = pause_menu.handle_input(event)
             if result == "resume":
                 game_state = "running"
             elif result == "quit":
                 running = False
-                
         elif game_state == "level_up":
             result = level_up_menu.handle_input(event)
             if result == "closed":
                 level_up_menu.deactivate()
                 game_state = "running"
 
-
-    # 2. Lógica de Juego
+    # --- LÓGICA ---
     if game_state == "running":
-        
-        # 2.1 Actualización de Sprites
+        # Actualizar sprites
         all_sprites.update()
         enemies.update()
         projectiles.update()
@@ -105,197 +156,160 @@ while running:
         area_abilities.update()
         player.update()
         orbs.update()
-        
-        # 2.2 Generación de Enemigos (Lógica Exponencial)
-        current_enemy_count = len(enemies)
-        
-        # Determinar el multiplicador de salud
-        enemy_health_multiplier = 2.0 if current_enemy_count >= MAX_ENEMIES_LIMIT else 1.0
+        bombs.update()
 
+        # --- SPAWN DE ENEMIGOS ---
+        current_enemy_count = len(enemies)
+        enemy_health_multiplier = 2.0 if current_enemy_count >= MAX_ENEMIES_LIMIT else 1.0
         wave_timer += 1
-        
         if wave_timer >= WAVE_INTERVAL_FRAMES:
             wave_timer = 0
-            
-            # Calcular el número de enemigos a generar: 2^Nivel
             enemies_to_spawn = 2 ** player.level
-            
-            # Limitar la cantidad total de enemigos
             max_spawnable = MAX_ENEMIES_LIMIT - current_enemy_count
-            num_to_spawn = max(0, min(enemies_to_spawn, max_spawnable)) # Asegura que no sea negativo
+            num_to_spawn = max(0, min(enemies_to_spawn, max_spawnable))
 
             for _ in range(num_to_spawn):
-                # Lógica para determinar x e y (fuera de pantalla)
-                if random.choice([True, False]): 
-                    x = random.choice([0, SCREEN_WIDTH])
-                    y = random.randint(0, SCREEN_HEIGHT)
+                side = random.choice(["top", "bottom", "left", "right"])
+                if side == "top":
+                    x, y = random.randint(0, SCREEN_WIDTH), -TILE_SIZE
+                elif side == "bottom":
+                    x, y = random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT + TILE_SIZE
+                elif side == "left":
+                    x, y = -TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
                 else:
-                    x = random.randint(0, SCREEN_WIDTH)
-                    y = random.choice([0, SCREEN_HEIGHT])
-                    
-                # Crear enemigo con el multiplicador de salud
+                    x, y = SCREEN_WIDTH + TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
                 Enemy(x, y, player, (all_sprites, enemies), health_multiplier=enemy_health_multiplier)
-            
-        # 2.3 Generación de ataques por el jugador
-        attack_data = player.get_attack_data()
-        
-        # Dirección base (enemigo más cercano o aleatoria)
-        base_direction = pygame.math.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize()
-        if enemies:
-            closest_enemy = min(enemies, key=lambda e: player.pos.distance_to(e.pos))
-            base_direction = pygame.math.Vector2(closest_enemy.rect.center) - player.pos
-            if base_direction.length_squared() > 0:
-                base_direction = base_direction.normalize()
 
+        # --- ATAQUES MÚLTIPLES (TODAS LAS HABILIDADES) ---
+        attacks = player.get_attack_data()
+        for attack_data in attacks:
+            print(f"ATACANDO: {attack_data['type']}")  # DEBUG
 
-        if attack_data:
-            
             if attack_data["type"] == "Daga Rápida":
-                 for _ in range(attack_data["count"]):
-                    random_angle = random.uniform(0, 2 * math.pi)
-                    random_direction = pygame.math.Vector2(math.cos(random_angle), math.sin(random_angle))
-                    Projectile(player.rect.centerx, player.rect.centery, random_direction, attack_data["damage"], (all_sprites, projectiles))
+                for _ in range(attack_data["count"]):
+                    angle = random.uniform(0, 2 * math.pi)
+                    direction = pygame.math.Vector2(math.cos(angle), math.sin(angle))
+                    Projectile(player.rect.centerx, player.rect.centery, direction, attack_data["damage"], (all_sprites, projectiles))
+                player.last_fire_time = pygame.time.get_ticks()
 
             elif attack_data["type"] == "Rayo de Escarcha":
-                RayOfFrost(player.rect.centerx, player.rect.centery, base_direction, attack_data["damage"], (all_sprites, ray_of_frosts))
-                
+                mx, my = pygame.mouse.get_pos()
+                dx = mx - player.rect.centerx
+                dy = my - player.rect.centery
+                dist = math.hypot(dx, dy)
+                direction = pygame.math.Vector2(dx / dist, dy / dist) if dist > 0 else pygame.math.Vector2(1, 0)
+                RayOfFrost(player.rect.centerx, player.rect.centery, direction, attack_data["damage"], (all_sprites, ray_of_frosts))
+
+            elif attack_data["type"] == "Aura de Fuego":
+                if not get_area_ability("fire"):
+                    AreaAbility(player, attack_data["damage"], attack_data["radius"], attack_data["cooldown"], (all_sprites, area_abilities), "fire")
+
             elif attack_data["type"] == "Bumerang":
                 for _ in range(attack_data["count"]):
-                     Bumerang(player, attack_data["damage"], attack_data["speed"], attack_data["lifetime"], (all_sprites, bumerangs))
+                    Bumerang(player, attack_data["damage"], attack_data["speed"], attack_data["lifetime"], (all_sprites, bumerangs))
+                player.last_bumerang_time = pygame.time.get_ticks()
 
-            # Creación única del Aura de Fuego (Solo si no existe)
-            elif attack_data["type"] == "Aura de Fuego":
-                 if not get_area_ability("fire"):
-                    AreaAbility(
-                        player, 
-                        attack_data["damage"], 
-                        attack_data["radius"], 
-                        attack_data["cooldown"], 
-                        (all_sprites, area_abilities), 
-                        ability_type="fire"
-                    )
+            elif attack_data["type"] == "Bomba Aleatoria":
+                for _ in range(attack_data["count"]):
+                    offset_x = random.randint(-200, 200)
+                    offset_y = random.randint(-200, 200)
+                    # ¡CORREGIDO! orbs_group = orbs
+                    Bomb(player.rect.centerx + offset_x, player.rect.centery + offset_y,
+                        attack_data["damage"], attack_data["radius"], attack_data["fall_time"],
+                        (all_sprites, bombs), orbs)  # ¡orbs sigue igual!
+                player.last_bomb_time = pygame.time.get_ticks()
 
-            # Creación única del Aura de Magnetismo (Solo si no existe)
-            elif attack_data["type"] == "Aura de Magnetismo":
-                 if not get_area_ability("magnetism"):
-                    AreaAbility(
-                        player, 
-                        attack_data["damage"], 
-                        attack_data["radius"], # Este es el multiplicador
-                        attack_data["cooldown"], 
-                        (all_sprites, area_abilities), 
-                        ability_type="magnetism"
-                    )
-
-
-        # 2.4 Colisiones y Lógica de Daño de Fuego
-        current_time = pygame.time.get_ticks()
-        fire_aura = get_area_ability("fire")
-        if fire_aura and current_time - last_fire_damage_time > fire_aura.cooldown:
-            last_fire_damage_time = current_time
-            
-            for enemy in enemies:
-                # Colisión usando el radio de daño real (damage_radius)
-                if enemy.pos.distance_to(fire_aura.rect.center) < fire_aura.damage_radius: 
-                    if enemy.take_damage(fire_aura.damage):
-                        ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs))
-
-
-        # Proyectiles, Rayo de Escarcha y Bumerán vs Enemigo
-        hits = pygame.sprite.groupcollide(projectiles, enemies, True, False)
-        for projectile, hit_enemies in hits.items():
+        # --- COLISIONES ---
+        hits_proj = pygame.sprite.groupcollide(projectiles, enemies, True, False)
+        for proj, hit_enemies in hits_proj.items():
             for enemy in hit_enemies:
-                if enemy.take_damage(projectile.damage):
-                    ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs))
-        
-        
-        # 2.5 Lógica de Aura de Magnetismo (Radio de Recolección)
-        magnet_aura = get_area_ability("magnetism")
-        # El atributo 'radius_multiplier' se guarda en el Aura de Magnetismo
-        magnet_radius_multiplier = magnet_aura.radius_multiplier if magnet_aura else 1.0 
-        
-        # Jugador vs Orbe y Actualización del radio de recolección
-        for orb in orbs:
-            # Pasa el multiplicador al orbe
-            orb.set_target(player, magnetism_aura_radius=magnet_radius_multiplier) 
+                if enemy.take_damage(proj.damage):
+                    ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs,))
 
+        hits_rays = pygame.sprite.groupcollide(ray_of_frosts, enemies, True, False)
+        for ray, hit_enemies in hits_rays.items():
+            for enemy in hit_enemies:
+                if enemy.take_damage(ray.damage):
+                    ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs,))
+
+        hits_bumerangs = pygame.sprite.groupcollide(bumerangs, enemies, False, False)
+        for bumerang, hit_enemies in hits_bumerangs.items():
+            if not bumerang.has_hit:
+                for enemy in hit_enemies:
+                    if enemy.take_damage(bumerang.damage):
+                        ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs,))
+                bumerang.has_hit = True
+
+        aura = get_area_ability("fire")
+        if aura:
+            current_time = pygame.time.get_ticks()
+            if current_time - aura.last_damage_time >= aura.cooldown:
+                aura.last_damage_time = current_time
+                for enemy in enemies:
+                    if enemy.pos.distance_to(player.pos) < aura.damage_radius:
+                        if enemy.take_damage(aura.damage):
+                            ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs,))
+
+        for orb in orbs:
+            orb.set_target(player, magnetism_aura_radius=1.0)
         orb_hits = pygame.sprite.spritecollide(player, orbs, True)
         for orb in orb_hits:
             if player.add_experience(orb.amount):
-                # Solo cambiamos el estado si hay opciones de mejora disponibles (Evita mostrar el menú si todo está al máximo)
                 if obtener_opciones_subida_nivel(player.active_abilities):
                     game_state = "level_up"
                     level_up_menu.activate()
-            
 
-    # 3. Dibujo
-    
-    # --- DIBUJO DEL FONDO (PRIMERO) ---
+    # --- DIBUJO ---
     if BACKGROUND_IMAGE:
         screen.blit(BACKGROUND_IMAGE, (0, 0))
     else:
-        screen.fill(BLACK) 
-    # -----------------------------------
-    
-    # 1. Dibujar Auras con el método custom DEBAJO del jugador
-    for ability in area_abilities:
-        # CORRECCIÓN: Usa draw_custom para evitar el AttributeError
-        ability.draw_custom(screen) 
-    
-    # 2. Dibujar Proyectiles, Orbes y Enemigos
+        screen.fill(BLACK)
+
     enemies.draw(screen)
-    projectiles.draw(screen)
-    bumerangs.draw(screen)
-    ray_of_frosts.draw(screen)
+    screen.blit(player.image, player.rect)
     orbs.draw(screen)
-    
-    # Dibujar barras de vida de enemigos
+    projectiles.draw(screen)
+    ray_of_frosts.draw(screen)
+    bumerangs.draw(screen)
+
+    for bomb in bombs:
+        bomb.draw_custom(screen)
+
+    for ability in area_abilities:
+        ability.draw_custom(screen)
+
     if game_state == "running":
         for enemy in enemies:
             enemy.draw_health_bar(screen)
 
-    # 3. Dibujar el JUGADOR AL FINAL
-    screen.blit(player.image, player.rect) 
-    
-    # Dibujar HUD (Interfaz de usuario)
+    # --- HUD ---
     font = pygame.font.Font(None, 36)
     font_small = pygame.font.Font(None, 30)
+    y_hud = 10
+    screen.blit(font.render(f"Nivel: {player.level} | EXP: {player.experience}", True, WHITE), (10, y_hud))
+    y_hud += 30
+    screen.blit(font.render(f"HP: {player.health}/{player.max_health}", True, RED), (10, y_hud))
 
-    # --- HUD Principal ---
-    y_hud_offset = 10
-    text = font.render(f"Nivel: {player.level} | EXP: {player.experience}", True, WHITE)
-    screen.blit(text, (10, y_hud_offset))
-    y_hud_offset += 30
-    text = font.render(f"HP: {player.health}/{player.max_health}", True, RED)
-    screen.blit(text, (10, y_hud_offset))
-    
-    # Contador de Enemigos (Arriba a la derecha)
-    difficulty_text = ""
-    if enemy_health_multiplier > 1.0:
-        difficulty_text = f" | Dificultad: x{int(enemy_health_multiplier)}"
-    
-    enemy_count_text = font.render(f"ENEMIGOS: {current_enemy_count}/{MAX_ENEMIES_LIMIT}{difficulty_text}", True, WHITE)
-    screen.blit(enemy_count_text, (SCREEN_WIDTH - enemy_count_text.get_width() - 10, 10))
+    current_enemy_count = len(enemies)
+    enemy_health_multiplier = 2.0 if current_enemy_count >= MAX_ENEMIES_LIMIT else 1.0
+    diff_text = f" | Dificultad: x{int(enemy_health_multiplier)}" if enemy_health_multiplier > 1 else ""
+    enemy_text = font.render(f"ENEMIGOS: {current_enemy_count}/{MAX_ENEMIES_LIMIT}{diff_text}", True, WHITE)
+    screen.blit(enemy_text, (SCREEN_WIDTH - enemy_text.get_width() - 10, 10))
 
-    # Habilidades Activas (Abajo a la izquierda)
-    abilities_title = font.render("HABILIDADES ACTIVAS:", True, WHITE)
-    screen.blit(abilities_title, (10, SCREEN_HEIGHT - 130)) 
-    y_abil_offset = SCREEN_HEIGHT - 100 
-    
-    for hid, level in player.active_abilities.items():
+    screen.blit(font.render("HABILIDADES ACTIVAS:", True, WHITE), (10, SCREEN_HEIGHT - 130))
+    y_abil = SCREEN_HEIGHT - 100
+    for hid, lvl in player.active_abilities.items():
         if hid in HABILIDADES_MAESTRAS:
             name = HABILIDADES_MAESTRAS[hid]["nombre"]
-            ability_text = font_small.render(f"- {name} (Nv. {level})", True, WHITE)
-            screen.blit(ability_text, (20, y_abil_offset))
-            y_abil_offset += 25
+            txt = font_small.render(f"- {name} (Nv. {lvl})", True, WHITE)
+            screen.blit(txt, (20, y_abil))
+            y_abil += 25
 
-
-    # Dibujar Menús (si están activos)
     if game_state == "level_up":
         level_up_menu.draw(screen)
     elif game_state == "paused":
         pause_menu.draw(screen)
-        
+
     pygame.display.flip()
     clock.tick(FPS)
 

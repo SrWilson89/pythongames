@@ -30,117 +30,87 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
     2: {
         "nombre": "Rayo de Escarcha",
         "max_nivel": 5,
-        "descripcion_base": "Un proyectil que congela y ralentiza a los enemigos.",
+        "descripcion_base": "Dispara un rayo que atraviesa a los enemigos.",
         "niveles": [
-            {"damage": 15, "cooldown": 2500, "speed": 8},
-            {"damage": 15, "cooldown": 2000, "speed": 8},
+            {"damage": 10, "cooldown": 2500, "speed": 8},
+            {"damage": 15, "cooldown": 2200, "speed": 8},
+            {"damage": 15, "cooldown": 2000, "speed": 10},
             {"damage": 20, "cooldown": 2000, "speed": 10},
-            {"damage": 25, "cooldown": 1800, "speed": 10},
-            {"damage": 30, "cooldown": 1500, "speed": 12},
+            {"damage": 25, "cooldown": 1800, "speed": 12},
         ]
     },
     3: {
         "nombre": "Aura de Fuego",
         "max_nivel": 5,
-        "descripcion_base": "Aura que quema a los enemigos cercanos periódicamente.",
+        "descripcion_base": "Un anillo de fuego que quema a los enemigos cercanos.",
         "niveles": [
-            {"damage": 3, "cooldown": 1000, "radius": 1.0}, # Multiplicador de radio base
-            {"damage": 5, "cooldown": 1000, "radius": 1.2},
-            {"damage": 7, "cooldown": 900, "radius": 1.2},
-            {"damage": 9, "cooldown": 800, "radius": 1.5},
-            {"damage": 12, "cooldown": 700, "radius": 1.7},
+            {"damage": 3,  "cooldown": 1000, "radius": 1.0}, # Daño cada 1s
+            {"damage": 5,  "cooldown": 1000, "radius": 1.2},
+            {"damage": 5,  "cooldown": 800, "radius": 1.2},
+            {"damage": 7,  "cooldown": 800, "radius": 1.5},
+            {"damage": 10, "cooldown": 600, "radius": 1.5},
         ]
     },
     4: {
-        "nombre": "Bumerang Gigante",
-        "max_nivel": 6,
-        "descripcion_base": "Lanza un proyectil que regresa al jugador.",
+        "nombre": "Bumerán Gigante",
+        "max_nivel": 5,
+        "descripcion_base": "Lanza un bumerán que regresa y golpea dos veces.",
         "niveles": [
-            {"damage": 20, "cooldown": 3000, "speed": 7, "lifetime": 150, "count": 1},
-            {"damage": 25, "cooldown": 2800, "speed": 7, "lifetime": 150, "count": 1},
-            {"damage": 30, "cooldown": 2800, "speed": 8, "lifetime": 180, "count": 1},
-            {"damage": 35, "cooldown": 2500, "speed": 8, "lifetime": 180, "count": 1},
-            {"damage": 40, "cooldown": 2500, "speed": 9, "lifetime": 200, "count": 2},
-            {"damage": 50, "cooldown": 2000, "speed": 10, "lifetime": 220, "count": 2},
+            {"damage": 15, "cooldown": 4000, "speed": 5, "lifetime": 150, "count": 1},
+            {"damage": 20, "cooldown": 3800, "speed": 6, "lifetime": 160, "count": 1},
+            {"damage": 20, "cooldown": 3500, "speed": 6, "lifetime": 170, "count": 1},
+            {"damage": 25, "cooldown": 3500, "speed": 7, "lifetime": 180, "count": 2},
+            {"damage": 30, "cooldown": 3000, "speed": 8, "lifetime": 200, "count": 2},
         ]
     },
-    5: {
-        "nombre": "Aura de Magnetismo",
-        "max_nivel": 3,
-        "descripcion_base": "Aumenta el radio de recolección de experiencia.",
+    5: { # NUEVA HABILIDAD
+        "nombre": "Bomba Aleatoria",
+        "max_nivel": 5,
+        "descripcion_base": "Lanza bombas que explotan en un área, golpeando a los enemigos.",
         "niveles": [
-            {"damage": 0, "cooldown": 500, "radius": 1.5}, # Multiplicador de radio de recolección
-            {"damage": 0, "cooldown": 500, "radius": 2.0},
-            {"damage": 0, "cooldown": 500, "radius": 3.0},
+            {"damage": 20, "cooldown": 5000, "radius": 1.0, "count": 1, "fall_time": 60}, # Cooldown de 5s
+            {"damage": 25, "cooldown": 4500, "radius": 1.0, "count": 1, "fall_time": 60},
+            {"damage": 25, "cooldown": 4000, "radius": 1.2, "count": 1, "fall_time": 50},
+            {"damage": 30, "cooldown": 4000, "radius": 1.2, "count": 2, "fall_time": 50},
+            {"damage": 40, "cooldown": 3500, "radius": 1.5, "count": 2, "fall_time": 40},
         ]
-    }
+    },
 }
 
-# -------------------------------------------------
-# LÓGICA DE NIVELADO
+# ... (El resto de las funciones auxiliares se mantienen igual) ...
+
+# Funciones de Soporte
 # -------------------------------------------------
 
-def obtener_opciones_subida_nivel(active_abilities: Dict[int, int], num_opciones: int = 3) -> List[Option]:
-    """
-    Genera una lista de opciones únicas para que el jugador elija al subir de nivel.
-    Prioriza las mejoras de habilidades activas.
-    """
-    opciones: List[Option] = []
-    usadas = set() # Para asegurar opciones únicas
-    rng = random.Random()
+def obtener_opciones_subida_nivel(active_abilities: Dict[int, int]) -> List[Option]:
+    # ... (código sin cambios)
     
-    # Probabilidad base de que se ofrezca una mejora (en lugar de una nueva habilidad)
-    prob_mejora = 0.7 
-
-    # Habilidades que ya tiene el jugador
-    habilidades_activas = active_abilities.keys()
-    # Habilidades que aún no están al máximo
-    mejores_disponibles = [
-        hid for hid in habilidades_activas
-        if active_abilities[hid] < HABILIDADES_MAESTRAS[hid]["max_nivel"]
-    ]
-    # Habilidades que el jugador no tiene
-    nuevas = [
-        hid for hid in HABILIDADES_MAESTRAS.keys() 
-        if hid not in habilidades_activas
+    # Lista de IDs de habilidades disponibles para "Nueva"
+    available_new_ids = [hid for hid in HABILIDADES_MAESTRAS.keys() if hid not in active_abilities]
+    
+    # Lista de IDs de habilidades disponibles para "Mejora"
+    available_upgrade_ids = [
+        hid for hid, level in active_abilities.items() 
+        if level < HABILIDADES_MAESTRAS[hid]["max_nivel"]
     ]
     
-    for _ in range(num_opciones):
-        # Candidatos que no se han usado
-        cand_mej = [hid for hid in mejores_disponibles if (hid, "Mejora") not in usadas]
-        cand_nue = [hid for hid in nuevas     if (hid, "Nueva")  not in usadas]
+    # Combinar todas las opciones
+    all_options: List[Option] = (
+        [(hid, "Nueva") for hid in available_new_ids] + 
+        [(hid, "Mejora") for hid in available_upgrade_ids]
+    )
+    
+    # Si no hay opciones, devolver lista vacía
+    if not all_options:
+        return []
 
-        # ¿Elegimos mejora o nueva?
-        elige_mejora = (
-            cand_mej and
-            (rng.random() < prob_mejora or not cand_nue)
-        )
+    # Elegir 3 opciones aleatorias sin repetición
+    num_choices = min(3, len(all_options))
+    return random.sample(all_options, num_choices)
 
-        if elige_mejora and cand_mej:
-            elegido = rng.choice(cand_mej)
-            tipo: OptionType = "Mejora"
-        elif cand_nue:
-            elegido = rng.choice(cand_nue)
-            tipo = "Nueva"
-        else:
-            # Último recurso: lo que quede
-            if cand_mej:
-                elegido = rng.choice(cand_mej)
-                tipo = "Mejora"
-            else:
-                break  # nada más que ofrecer
 
-        opciones.append((elegido, tipo))
-        usadas.add((elegido, tipo))
-
-    return opciones
-
-# -------------------------------------------------
-# HELPERS PARA UI / DEBUG
-# -------------------------------------------------
-def describir_opcion(opcion: Option, active_abilities: Dict[int, int]) -> str:
-    """Devuelve texto legible para mostrar al jugador. (Acepta active_abilities para saber el nivel)"""
-    hid, tipo = opcion
+def describir_opcion(hid: int, tipo: str, active_abilities: Dict[int, int]) -> str:
+    # ... (código sin cambios)
     hab = HABILIDADES_MAESTRAS[hid]
     nivel_actual = active_abilities.get(hid, 0)
     
@@ -162,16 +132,24 @@ def describir_opcion(opcion: Option, active_abilities: Dict[int, int]) -> str:
         
         # Comparar las métricas comunes
         for key in params_actual.keys():
+            if key not in params_siguiente: continue # Ignorar claves que desaparecen (no debería pasar)
+            
             if params_actual[key] != params_siguiente[key]:
                 if key == "damage":
                     cambios.append(f"Daño: {params_actual[key]} -> {params_siguiente[key]}")
                 elif key == "cooldown":
+                    # Muestra el cooldown en segundos
                     cambios.append(f"CD: {params_actual[key]//1000}s -> {params_siguiente[key]//1000}s")
                 elif key == "count":
                     cambios.append(f"Cant.: {params_actual[key]} -> {params_siguiente[key]}")
                 elif key == "radius":
-                    cambios.append(f"Radio x{params_actual[key]:.1f} -> x{params_siguiente[key]:.1f}")
-                    
-        return desc + ", ".join(cambios)
-        
-    return "Opción desconocida."
+                     cambios.append(f"Radio: x{params_actual[key]} -> x{params_siguiente[key]}")
+                elif key == "fall_time":
+                    cambios.append(f"Tiempo Caída: {params_actual[key]}f -> {params_siguiente[key]}f")
+                elif key == "lifetime":
+                     cambios.append(f"Duración: {params_actual[key]}f -> {params_siguiente[key]}f")
+                elif key == "speed":
+                    cambios.append(f"Velocidad: {params_actual[key]} -> {params_siguiente[key]}")
+
+
+        return desc + ", ".join(cambios) + "."

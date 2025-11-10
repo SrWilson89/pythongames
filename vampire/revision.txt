@@ -1,7 +1,67 @@
---- INICIO DE SESIÓN DE JUEGO (revision.txt) ---
-Traceback (most recent call last):
-  File "C:\Users\srwil\Documents\VSC\python\vampire\main.py", line 252, in <module>
-    ability.draw(screen) 
-    ^^^^^^^^^^^^
-AttributeError: 'AreaAbility' object has no attribute 'draw'
-  
+=== DIAGNÓSTICO DE SPRITES - 2025-11-10 10:16:43 ===
+
+Archivos en 'assets/sprites/': 21
+
+  • bumerang.png
+
+  • dagger.png
+
+  • enemy.png
+
+  • enemy1.png
+
+  • enemy10.png
+
+  • enemy11.png
+
+  • enemy12.png
+
+  • enemy2.png
+
+  • enemy3.png
+
+  • enemy4.png
+
+  • enemy5.png
+
+  • enemy6.png
+
+  • enemy7.png
+
+  • enemy8.png
+
+  • enemy9.png
+
+  • experience_orb.png
+
+  • fire_ember.png
+
+  • fire_ring.png
+
+  • granade.png
+
+  • ice_shard.png
+
+  • player.png
+
+
+
+CARGADO: Jugador: player.png (500x500)
+
+CARGADO: Daga: dagger.png (446x559)
+
+CARGADO: Bumerán: bumerang.png (446x559)
+
+CARGADO: Rayo de Escarcha: ice_shard.png (500x500)
+
+CARGADO: Aura de Fuego: fire_ring.png (500x500)
+
+CARGADO: Orbe EXP: experience_orb.png (500x500)
+
+CARGADO: Granada/Bomba: granade.png (500x500)
+
+
+
+RESUMEN: 7 CARGADOS | 0 PROBLEMAS
+
+============================================================

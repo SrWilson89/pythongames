@@ -8,7 +8,7 @@ class ExperienceOrb(pygame.sprite.Sprite):
         super().__init__(groups)
         
         self.amount = amount
-        self.size = TILE_SIZE // 2 # Un tamaño pequeño y proporcional
+        self.size = TILE_SIZE // 1.8 # Un tamaño pequeño y proporcional
         
         # 1. Configuración Visual (Carga del PNG)
         try:

@@ -38,6 +38,7 @@ class Bumerang(pygame.sprite.Sprite):
         self.timer = 0
         self.returning = False
         self.rotation_angle = 0
+        self.has_hit = False # <--- CORRECCIÓN: Inicializa la bandera de golpeo
         
     def update(self):
         """Mueve el bumerán, lo hace regresar y comprueba el tiempo de vida."""
@@ -58,6 +59,7 @@ class Bumerang(pygame.sprite.Sprite):
             if self.timer >= self.lifetime_max:
                 self.returning = True
                 self.timer = 0 # Reiniciar el timer si se quiere limitar la fase de regreso
+                self.has_hit = False # <--- IMPORTANTE: Reiniciar has_hit para la fase de vuelta
                 
         else:
             # Fase 2: Regresar
