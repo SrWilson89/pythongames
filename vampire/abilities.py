@@ -18,13 +18,13 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "descripcion_base": "Dispara dagas en direcciones aleatorias.",
         "niveles": [
             {"damage": 5,  "cooldown": 1000, "count": 1},
-            {"damage": 5,  "cooldown":  900, "count": 1},
-            {"damage": 7,  "cooldown":  900, "count": 1},
-            {"damage": 7,  "cooldown":  800, "count": 1},
-            {"damage": 8,  "cooldown":  800, "count": 2},
-            {"damage": 9,  "cooldown":  700, "count": 2},
-            {"damage": 10, "cooldown":  700, "count": 3},
-            {"damage": 12, "cooldown":  600, "count": 3},
+            {"damage": 5,  "cooldown":  900, "count": 2},
+            {"damage": 7,  "cooldown":  900, "count": 3},
+            {"damage": 7,  "cooldown":  800, "count": 4},
+            {"damage": 8,  "cooldown":  800, "count": 5},
+            {"damage": 9,  "cooldown":  700, "count": 6},
+            {"damage": 10, "cooldown":  700, "count": 7},
+            {"damage": 12, "cooldown":  600, "count": 14},
         ]
     },
     2: {
@@ -34,9 +34,9 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "niveles": [
             {"damage": 10, "cooldown": 2500, "speed": 8},
             {"damage": 15, "cooldown": 2200, "speed": 8},
-            {"damage": 15, "cooldown": 2000, "speed": 10},
             {"damage": 20, "cooldown": 2000, "speed": 10},
-            {"damage": 25, "cooldown": 1800, "speed": 12},
+            {"damage": 30, "cooldown": 2000, "speed": 10},
+            {"damage": 50, "cooldown": 1800, "speed": 12},
         ]
     },
     3: {
@@ -45,10 +45,10 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "descripcion_base": "Un anillo de fuego que quema a los enemigos cercanos.",
         "niveles": [
             {"damage": 3,  "cooldown": 1000, "radius": 1.0}, # Daño cada 1s
-            {"damage": 5,  "cooldown": 1000, "radius": 1.2},
-            {"damage": 5,  "cooldown": 800, "radius": 1.2},
-            {"damage": 7,  "cooldown": 800, "radius": 1.5},
-            {"damage": 10, "cooldown": 600, "radius": 1.5},
+            {"damage": 5,  "cooldown": 500, "radius": 1.2},
+            {"damage": 8,  "cooldown": 300, "radius": 1.5},
+            {"damage": 15,  "cooldown": 150, "radius": 1.8},
+            {"damage": 30, "cooldown": 70, "radius": 2.0},
         ]
     },
     4: {
@@ -57,10 +57,10 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "descripcion_base": "Lanza un bumerán que regresa y golpea dos veces.",
         "niveles": [
             {"damage": 15, "cooldown": 4000, "speed": 5, "lifetime": 150, "count": 1},
-            {"damage": 20, "cooldown": 3800, "speed": 6, "lifetime": 160, "count": 1},
-            {"damage": 20, "cooldown": 3500, "speed": 6, "lifetime": 170, "count": 1},
-            {"damage": 25, "cooldown": 3500, "speed": 7, "lifetime": 180, "count": 2},
-            {"damage": 30, "cooldown": 3000, "speed": 8, "lifetime": 200, "count": 2},
+            {"damage": 20, "cooldown": 3800, "speed": 6, "lifetime": 160, "count": 2},
+            {"damage": 20, "cooldown": 3500, "speed": 6, "lifetime": 170, "count": 3},
+            {"damage": 25, "cooldown": 3500, "speed": 7, "lifetime": 180, "count": 4},
+            {"damage": 30, "cooldown": 3000, "speed": 8, "lifetime": 200, "count": 8},
         ]
     },
     5: { # NUEVA HABILIDAD
@@ -69,10 +69,10 @@ HABILIDADES_MAESTRAS: Dict[int, Dict[str, Any]] = {
         "descripcion_base": "Lanza bombas que explotan en un área, golpeando a los enemigos.",
         "niveles": [
             {"damage": 20, "cooldown": 5000, "radius": 1.0, "count": 1, "fall_time": 60}, # Cooldown de 5s
-            {"damage": 25, "cooldown": 4500, "radius": 1.0, "count": 1, "fall_time": 60},
-            {"damage": 25, "cooldown": 4000, "radius": 1.2, "count": 1, "fall_time": 50},
-            {"damage": 30, "cooldown": 4000, "radius": 1.2, "count": 2, "fall_time": 50},
-            {"damage": 40, "cooldown": 3500, "radius": 1.5, "count": 2, "fall_time": 40},
+            {"damage": 25, "cooldown": 4500, "radius": 1.2, "count": 2, "fall_time": 60},
+            {"damage": 25, "cooldown": 4000, "radius": 1.5, "count": 3, "fall_time": 50},
+            {"damage": 30, "cooldown": 4000, "radius": 1.8, "count": 4, "fall_time": 50},
+            {"damage": 40, "cooldown": 3500, "radius": 2.0, "count": 8, "fall_time": 40},
         ]
     },
 }

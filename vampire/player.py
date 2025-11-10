@@ -27,15 +27,18 @@ class Player(pygame.sprite.Sprite):
         self.experience = 0
         self.level = 1
         
-        # Habilidades ACTIVAS desde el inicio
+        # Habilidades ACTIVAS (¡AGREGADO RAYO ID 2!)
         self.active_abilities = {
-            1: 1,  # Daga Rápida (SIEMPRE activa)
+            1: 1,  # Daga Rápida
+            2: 1,  # Rayo de Escarcha ← ¡NUEVO!
             3: 1,  # Aura de Fuego
-            4: 1,  # Bumerán Gigante
+            4: 1,  # Bumerán
+            5: 1,  # Bomba Aleatoria
         }
         
-        # Timers independientes (cooldowns en ms)
+        # Timers independientes
         self.last_fire_time = 0        # Dagas
+        self.last_frost_time = 0       # Rayo de Escarcha ← ¡NUEVO!
         self.last_bumerang_time = 0    # Bumerán
         self.last_bomb_time = 0        # Bomba
         self.aura_created = False      # Aura solo una vez
@@ -64,11 +67,10 @@ class Player(pygame.sprite.Sprite):
             sys.exit()
 
     def get_attack_data(self):
-        """Devuelve LISTA de ataques disponibles (TODOS disparan)"""
         current_time = pygame.time.get_ticks()
         attacks = []
 
-        # 1. DAGAS (siempre prioridad alta)
+        # 1. DAGAS (alta frecuencia)
         if 1 in self.active_abilities:
             nivel = self.active_abilities[1]
             params = HABILIDADES_MAESTRAS[1]["niveles"][nivel - 1]
@@ -79,7 +81,18 @@ class Player(pygame.sprite.Sprite):
                     "count": params["count"]
                 })
 
-        # 2. BUMERÁN
+        # 2. RAYO DE ESCARCHA (automático hacia enemigo más cercano)
+        if 2 in self.active_abilities:
+            nivel = self.active_abilities[2]
+            params = HABILIDADES_MAESTRAS[2]["niveles"][nivel - 1]
+            if current_time - self.last_frost_time >= params["cooldown"]:
+                attacks.append({
+                    "type": "Rayo de Escarcha",
+                    "damage": params["damage"],
+                    "speed": params["speed"]
+                })
+
+        # 3. BUMERÁN
         if 4 in self.active_abilities:
             nivel = self.active_abilities[4]
             params = HABILIDADES_MAESTRAS[4]["niveles"][nivel - 1]
@@ -92,7 +105,7 @@ class Player(pygame.sprite.Sprite):
                     "count": params["count"]
                 })
 
-        # 3. BOMBA ALEATORIA
+        # 4. BOMBA ALEATORIA
         if 5 in self.active_abilities:
             nivel = self.active_abilities[5]
             params = HABILIDADES_MAESTRAS[5]["niveles"][nivel - 1]
@@ -105,9 +118,9 @@ class Player(pygame.sprite.Sprite):
                     "fall_time": params["fall_time"]
                 })
 
-        # 4. AURA (solo una vez)
+        # 5. AURA (solo una vez)
         if 3 in self.active_abilities and not self.aura_created:
-            self.aura_created = True  # Solo se crea UNA vez
+            self.aura_created = True
             nivel = self.active_abilities[3]
             params = HABILIDADES_MAESTRAS[3]["niveles"][nivel - 1]
             attacks.append({
@@ -117,9 +130,8 @@ class Player(pygame.sprite.Sprite):
                 "cooldown": params["cooldown"]
             })
 
-        return attacks  # ¡DEVUELVE LISTA!
+        return attacks
 
-    # UI Methods
     def add_new_ability(self, hid: int):
         self.active_abilities[hid] = 1
         print(f"NUEVA HABILIDAD: {hid}")

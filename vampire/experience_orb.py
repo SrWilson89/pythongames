@@ -8,12 +8,15 @@ class ExperienceOrb(pygame.sprite.Sprite):
         super().__init__(groups)
         
         self.amount = amount
-        self.size = TILE_SIZE // 1.8 # Un tamaño pequeño y proporcional
+        # ¡CORRECCIÓN CLAVE AQUÍ!
+        # Hacemos el orbe el 75% del tamaño de un TILE_SIZE
+        self.size = int(TILE_SIZE * 1.25) 
         
         # 1. Configuración Visual (Carga del PNG)
         try:
             # Intentamos cargar la imagen 'experience_orb.png'
             original_image = pygame.image.load("assets/sprites/experience_orb.png").convert_alpha()
+            # El sprite se escala automáticamente al nuevo self.size
             self.image = pygame.transform.scale(original_image, (self.size, self.size))
         except pygame.error:
             # Fallback si la imagen no se encuentra (Círculo Verde)

@@ -18,7 +18,7 @@ from area_ability import AreaAbility
 from experience_orb import ExperienceOrb
 from ui import LevelUpMenu, PauseMenu
 from abilities import HABILIDADES_MAESTRAS, obtener_opciones_subida_nivel
-from bomb import Bomb  # ¡CORREGIDO!
+from bomb import Bomb
 
 # ===== DIAGNÓSTICO AUTOMÁTICO DE SPRITES =====
 def diagnostic_sprites(screen):
@@ -81,7 +81,7 @@ screen = pygame.display.set_mode(SCREEN_SIZE)
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
 
-# DIAGNÓSTICO (funciona después de la ventana)
+# DIAGNÓSTICO
 diagnostic_sprites(screen)
 
 # --- FONDO ---
@@ -180,7 +180,7 @@ while running:
                     x, y = SCREEN_WIDTH + TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
                 Enemy(x, y, player, (all_sprites, enemies), health_multiplier=enemy_health_multiplier)
 
-        # --- ATAQUES MÚLTIPLES (TODAS LAS HABILIDADES) ---
+        # --- ATAQUES MÚLTIPLES ---
         attacks = player.get_attack_data()
         for attack_data in attacks:
             print(f"ATACANDO: {attack_data['type']}")  # DEBUG
@@ -193,12 +193,27 @@ while running:
                 player.last_fire_time = pygame.time.get_ticks()
 
             elif attack_data["type"] == "Rayo de Escarcha":
-                mx, my = pygame.mouse.get_pos()
-                dx = mx - player.rect.centerx
-                dy = my - player.rect.centery
-                dist = math.hypot(dx, dy)
-                direction = pygame.math.Vector2(dx / dist, dy / dist) if dist > 0 else pygame.math.Vector2(1, 0)
+                # AUTOMÁTICO: hacia el enemigo más cercano
+                closest_enemy = None
+                closest_dist = float('inf')
+                for enemy in enemies:
+                    dist = player.pos.distance_to(enemy.pos)
+                    if dist < closest_dist:
+                        closest_dist = dist
+                        closest_enemy = enemy
+                
+                if closest_enemy:
+                    dx = closest_enemy.pos.x - player.pos.x
+                    dy = closest_enemy.pos.y - player.pos.y
+                    dist = math.hypot(dx, dy)
+                    direction = pygame.math.Vector2(dx / dist, dy / dist) if dist > 0 else pygame.math.Vector2(1, 0)
+                else:
+                    # Fallback: dirección aleatoria
+                    angle = random.uniform(0, 2 * math.pi)
+                    direction = pygame.math.Vector2(math.cos(angle), math.sin(angle))
+                
                 RayOfFrost(player.rect.centerx, player.rect.centery, direction, attack_data["damage"], (all_sprites, ray_of_frosts))
+                player.last_frost_time = pygame.time.get_ticks()
 
             elif attack_data["type"] == "Aura de Fuego":
                 if not get_area_ability("fire"):
@@ -213,10 +228,9 @@ while running:
                 for _ in range(attack_data["count"]):
                     offset_x = random.randint(-200, 200)
                     offset_y = random.randint(-200, 200)
-                    # ¡CORREGIDO! orbs_group = orbs
                     Bomb(player.rect.centerx + offset_x, player.rect.centery + offset_y,
-                        attack_data["damage"], attack_data["radius"], attack_data["fall_time"],
-                        (all_sprites, bombs), orbs)  # ¡orbs sigue igual!
+                         attack_data["damage"], attack_data["radius"], attack_data["fall_time"],
+                         (all_sprites, bombs), orbs)
                 player.last_bomb_time = pygame.time.get_ticks()
 
         # --- COLISIONES ---
