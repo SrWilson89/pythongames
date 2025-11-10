@@ -27,24 +27,31 @@ class Player(pygame.sprite.Sprite):
         self.experience = 0
         self.level = 1
         
-        # Habilidades ACTIVAS (¡AGREGADO RAYO ID 2!)
+        # Habilidades
         self.active_abilities = {
             1: 1,  # Daga Rápida
-            2: 1,  # Rayo de Escarcha ← ¡NUEVO!
+            2: 1,  # Rayo de Escarcha
             3: 1,  # Aura de Fuego
             4: 1,  # Bumerán
             5: 1,  # Bomba Aleatoria
         }
         
-        # Timers independientes
-        self.last_fire_time = 0        # Dagas
-        self.last_frost_time = 0       # Rayo de Escarcha ← ¡NUEVO!
-        self.last_bumerang_time = 0    # Bumerán
-        self.last_bomb_time = 0        # Bomba
-        self.aura_created = False      # Aura solo una vez
+        # Timers
+        self.last_fire_time = 0
+        self.last_frost_time = 0
+        self.last_bumerang_time = 0
+        self.last_bomb_time = 0
+        self.aura_created = False
 
         self.pos = pygame.math.Vector2(self.rect.center)
         
+        # ¡NUEVO: Referencia al grupo de auras!
+        self.area_abilities_group = None
+
+    def set_area_group(self, group):
+        """Se llama desde main.py después de crear el grupo"""
+        self.area_abilities_group = group
+
     def update(self):
         keys = pygame.key.get_pressed()
         dx, dy = 0, 0
@@ -60,17 +67,45 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
     def take_damage(self, amount):
-        self.health -= amount
+        self.health = max(0, self.health - amount)
+        print(f"DAÑO: {amount}HP | HP: {self.health}/{self.max_health}")
         if self.health <= 0:
             print("GAME OVER")
             pygame.quit()
             sys.exit()
 
+    def level_up_health(self):
+        self.max_health = min(200, self.max_health + 10)
+        self.health = min(self.max_health, self.health + 10)
+        print(f"REGENERADO: +10HP | Máx: {self.max_health}")
+
+    def update_fire_aura(self):
+        """ACTUALIZA AURA SIN DEPENDER DE all_sprites"""
+        if not self.area_abilities_group:
+            return  # Aún no asignado
+        
+        nivel = self.active_abilities.get(3, 0)
+        if nivel == 0:
+            return
+        
+        params = HABILIDADES_MAESTRAS[3]["niveles"][nivel - 1]
+        damage = params["damage"]
+        radius_multiplier = params["radius"]
+        cooldown = params["cooldown"]
+        
+        # Buscar en el grupo de auras
+        for ability in self.area_abilities_group:
+            if ability.ability_type == "fire":
+                ability.damage = damage
+                ability.damage_radius = int(TILE_SIZE * 3 * radius_multiplier)
+                ability.cooldown = cooldown
+                print(f"AURA ACTUALIZADA: Radio x{radius_multiplier} | Daño {damage}")
+                break
+
     def get_attack_data(self):
         current_time = pygame.time.get_ticks()
         attacks = []
 
-        # 1. DAGAS (alta frecuencia)
         if 1 in self.active_abilities:
             nivel = self.active_abilities[1]
             params = HABILIDADES_MAESTRAS[1]["niveles"][nivel - 1]
@@ -81,7 +116,6 @@ class Player(pygame.sprite.Sprite):
                     "count": params["count"]
                 })
 
-        # 2. RAYO DE ESCARCHA (automático hacia enemigo más cercano)
         if 2 in self.active_abilities:
             nivel = self.active_abilities[2]
             params = HABILIDADES_MAESTRAS[2]["niveles"][nivel - 1]
@@ -92,7 +126,6 @@ class Player(pygame.sprite.Sprite):
                     "speed": params["speed"]
                 })
 
-        # 3. BUMERÁN
         if 4 in self.active_abilities:
             nivel = self.active_abilities[4]
             params = HABILIDADES_MAESTRAS[4]["niveles"][nivel - 1]
@@ -105,7 +138,6 @@ class Player(pygame.sprite.Sprite):
                     "count": params["count"]
                 })
 
-        # 4. BOMBA ALEATORIA
         if 5 in self.active_abilities:
             nivel = self.active_abilities[5]
             params = HABILIDADES_MAESTRAS[5]["niveles"][nivel - 1]
@@ -118,7 +150,6 @@ class Player(pygame.sprite.Sprite):
                     "fall_time": params["fall_time"]
                 })
 
-        # 5. AURA (solo una vez)
         if 3 in self.active_abilities and not self.aura_created:
             self.aura_created = True
             nivel = self.active_abilities[3]
@@ -143,12 +174,15 @@ class Player(pygame.sprite.Sprite):
             if current < max_lvl:
                 self.active_abilities[hid] += 1
                 print(f"MEJORADA: {hid} -> Nv.{self.active_abilities[hid]}")
+                if hid == 3:
+                    self.update_fire_aura()
 
     def add_experience(self, amount):
         self.experience += amount
         if self.experience >= self.level * EXPERIENCE_PER_LEVEL:
             self.experience -= self.level * EXPERIENCE_PER_LEVEL
             self.level += 1
+            self.level_up_health()
             print(f"¡NIVEL {self.level}!")
             return True
         return False

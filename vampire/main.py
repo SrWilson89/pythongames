@@ -97,22 +97,22 @@ except pygame.error:
 # --- GRUPOS DE SPRITES ---
 all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
-projectiles = pygame.sprite.Group()      # Dagas
-bumerangs = pygame.sprite.Group()        # Bumerán
-ray_of_frosts = pygame.sprite.Group()    # Rayo de Escarcha
-area_abilities = pygame.sprite.Group()   # Aura de Fuego
-orbs = pygame.sprite.Group()             # Orbes de EXP
-bombs = pygame.sprite.Group()            # Bombas
+projectiles = pygame.sprite.Group()
+bumerangs = pygame.sprite.Group()
+ray_of_frosts = pygame.sprite.Group()
+area_abilities = pygame.sprite.Group()
+orbs = pygame.sprite.Group()
+bombs = pygame.sprite.Group()
 
 # --- OBJETOS ---
 player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+player.set_area_group(area_abilities)
 level_up_menu = LevelUpMenu(player)
 pause_menu = PauseMenu()
 game_state = "running"
 running = True
 
 # --- PARÁMETROS DE DIFICULTAD ---
-MAX_ENEMIES_LIMIT = 256
 WAVE_INTERVAL_MS = 500
 WAVE_INTERVAL_FRAMES = max(1, (WAVE_INTERVAL_MS * FPS) // 1000)
 wave_timer = 0
@@ -158,33 +158,34 @@ while running:
         orbs.update()
         bombs.update()
 
-        # --- SPAWN DE ENEMIGOS ---
+        # --- SPAWN DE ENEMIGOS (8 × nivel, máx 256) ---
         current_enemy_count = len(enemies)
-        enemy_health_multiplier = 2.0 if current_enemy_count >= MAX_ENEMIES_LIMIT else 1.0
-        wave_timer += 1
-        if wave_timer >= WAVE_INTERVAL_FRAMES:
-            wave_timer = 0
-            enemies_to_spawn = 2 ** player.level
-            max_spawnable = MAX_ENEMIES_LIMIT - current_enemy_count
-            num_to_spawn = max(0, min(enemies_to_spawn, max_spawnable))
+        max_enemies_limit_by_level = min(256, 8 * player.level)
 
-            for _ in range(num_to_spawn):
-                side = random.choice(["top", "bottom", "left", "right"])
-                if side == "top":
-                    x, y = random.randint(0, SCREEN_WIDTH), -TILE_SIZE
-                elif side == "bottom":
-                    x, y = random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT + TILE_SIZE
-                elif side == "left":
-                    x, y = -TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
-                else:
-                    x, y = SCREEN_WIDTH + TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
-                Enemy(x, y, player, (all_sprites, enemies), health_multiplier=enemy_health_multiplier)
+        if current_enemy_count < max_enemies_limit_by_level:
+            wave_timer += 1
+            if wave_timer >= WAVE_INTERVAL_FRAMES:
+                wave_timer = 0
+                enemies_to_spawn = 2
+                available_slots = max_enemies_limit_by_level - current_enemy_count
+                num_to_spawn = min(enemies_to_spawn, available_slots)
 
-        # --- ATAQUES MÚLTIPLES ---
+                for _ in range(num_to_spawn):
+                    side = random.choice(["top", "bottom", "left", "right"])
+                    if side == "top":
+                        x, y = random.randint(0, SCREEN_WIDTH), -TILE_SIZE
+                    elif side == "bottom":
+                        x, y = random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT + TILE_SIZE
+                    elif side == "left":
+                        x, y = -TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
+                    else:
+                        x, y = SCREEN_WIDTH + TILE_SIZE, random.randint(0, SCREEN_HEIGHT)
+                    enemy_health_multiplier = 1.0 + (player.level * 0.05)
+                    Enemy(x, y, player, (all_sprites, enemies), health_multiplier=enemy_health_multiplier)
+
+        # --- ATAQUES ---
         attacks = player.get_attack_data()
         for attack_data in attacks:
-            print(f"ATACANDO: {attack_data['type']}")  # DEBUG
-
             if attack_data["type"] == "Daga Rápida":
                 for _ in range(attack_data["count"]):
                     angle = random.uniform(0, 2 * math.pi)
@@ -193,7 +194,6 @@ while running:
                 player.last_fire_time = pygame.time.get_ticks()
 
             elif attack_data["type"] == "Rayo de Escarcha":
-                # AUTOMÁTICO: hacia el enemigo más cercano
                 closest_enemy = None
                 closest_dist = float('inf')
                 for enemy in enemies:
@@ -201,17 +201,14 @@ while running:
                     if dist < closest_dist:
                         closest_dist = dist
                         closest_enemy = enemy
-                
                 if closest_enemy:
                     dx = closest_enemy.pos.x - player.pos.x
                     dy = closest_enemy.pos.y - player.pos.y
                     dist = math.hypot(dx, dy)
                     direction = pygame.math.Vector2(dx / dist, dy / dist) if dist > 0 else pygame.math.Vector2(1, 0)
                 else:
-                    # Fallback: dirección aleatoria
                     angle = random.uniform(0, 2 * math.pi)
                     direction = pygame.math.Vector2(math.cos(angle), math.sin(angle))
-                
                 RayOfFrost(player.rect.centerx, player.rect.centery, direction, attack_data["damage"], (all_sprites, ray_of_frosts))
                 player.last_frost_time = pygame.time.get_ticks()
 
@@ -254,6 +251,12 @@ while running:
                         ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs,))
                 bumerang.has_hit = True
 
+        # --- COLISIÓN ENEMIGO-JUGADOR ---
+        enemy_player_hits = pygame.sprite.spritecollide(player, enemies, True)
+        for enemy in enemy_player_hits:
+            player.take_damage(1)
+            ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (orbs,))
+
         aura = get_area_ability("fire")
         if aura:
             current_time = pygame.time.get_ticks()
@@ -285,13 +288,10 @@ while running:
     projectiles.draw(screen)
     ray_of_frosts.draw(screen)
     bumerangs.draw(screen)
-
     for bomb in bombs:
         bomb.draw_custom(screen)
-
     for ability in area_abilities:
         ability.draw_custom(screen)
-
     if game_state == "running":
         for enemy in enemies:
             enemy.draw_health_bar(screen)
@@ -305,9 +305,8 @@ while running:
     screen.blit(font.render(f"HP: {player.health}/{player.max_health}", True, RED), (10, y_hud))
 
     current_enemy_count = len(enemies)
-    enemy_health_multiplier = 2.0 if current_enemy_count >= MAX_ENEMIES_LIMIT else 1.0
-    diff_text = f" | Dificultad: x{int(enemy_health_multiplier)}" if enemy_health_multiplier > 1 else ""
-    enemy_text = font.render(f"ENEMIGOS: {current_enemy_count}/{MAX_ENEMIES_LIMIT}{diff_text}", True, WHITE)
+    max_enemies_limit_by_level = min(256, 8 * player.level)
+    enemy_text = font.render(f"ENEMIGOS: {current_enemy_count}/{max_enemies_limit_by_level}", True, WHITE)
     screen.blit(enemy_text, (SCREEN_WIDTH - enemy_text.get_width() - 10, 10))
 
     screen.blit(font.render("HABILIDADES ACTIVAS:", True, WHITE), (10, SCREEN_HEIGHT - 130))
