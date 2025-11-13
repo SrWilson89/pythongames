@@ -1,4 +1,4 @@
-=== DIAGNÓSTICO DE SPRITES - 2025-11-10 13:52:36 ===
+=== DIAGNÓSTICO DE SPRITES - 2025-11-12 20:39:24 ===
 
 Archivos en 'assets/sprites/': 21
 
