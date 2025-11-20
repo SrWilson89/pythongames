@@ -1,0 +1,8 @@
+2025-11-14 13:02:47,493 - ERROR - Excepción no controlada
+Traceback (most recent call last):
+  File "main.py", line 89, in <module>
+FileNotFoundError: No such file or directory: 'C:\Users\srwil\Documents\VSC\python\vampire2\dist\main\_internal\assets/background/tile.png'.
+2025-11-17 13:33:44,804 - ERROR - Excepción no controlada
+Traceback (most recent call last):
+  File "main.py", line 89, in <module>
+FileNotFoundError: No such file or directory: 'C:\Users\srwil\Documents\VSC\python\vampire2\dist\main\_internal\assets/background/tile.png'.

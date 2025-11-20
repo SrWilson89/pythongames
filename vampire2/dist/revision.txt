@@ -1,3 +1,0 @@
-=== DIAGNÓSTICO DE SPRITES - 2025-11-13 11:41:02 ===
-
-CRÍTICO: 'assets/sprites/' NO EXISTE

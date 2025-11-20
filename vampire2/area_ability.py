@@ -1,4 +1,4 @@
-# area_ability.py - VERSIÓN CORREGIDA
+# area_ability.py
 import pygame
 import math
 import os 
@@ -6,20 +6,13 @@ import sys
 from config import TILE_SIZE
 
 # =======================================================
-# FUNCIÓN DE RUTA ROBUSTA (Añadida para PyInstaller)
+# FUNCIÓN DE RUTA ROBUSTA
 # =======================================================
 def resource_path(relative_path):
-    """
-    Función que maneja rutas de recursos para desarrollo local o
-    ejecutables empaquetados por PyInstaller.
-    """
     try:
-        # sys._MEIPASS es la ruta de la carpeta temporal que PyInstaller crea
         base_path = sys._MEIPASS
     except Exception:
-        # Si no está empaquetado (se ejecuta localmente), usa la ruta actual
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 # =======================================================
 
@@ -36,29 +29,26 @@ class AreaAbility(pygame.sprite.Sprite):
         self.base_radius = int(TILE_SIZE * 3 * radius_multiplier)
         self.damage_radius = self.base_radius
 
-        # CARGAR TU PNG PERSONALIZADO
+        # CARGAR TU PNG PERSONALIZADO (Usando resource_path)
         try:
-            # Usa resource_path para la carga
             original = pygame.image.load(resource_path("assets/sprites/fire_ring.png")).convert_alpha()
             self.original_image = pygame.transform.scale(original, (self.base_radius * 2, self.base_radius * 2))
         except pygame.error as e:
-            print(f"ERROR: fire_ring.png no encontrado → {e}")
-            # Fallback (Círculo semi-transparente)
             self.original_image = pygame.Surface((self.base_radius * 2, self.base_radius * 2), pygame.SRCALPHA)
             pygame.draw.circle(self.original_image, (255, 100, 0, 100), (self.base_radius, self.base_radius), self.base_radius, 8)
 
         self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=player.rect.center)
         self.last_damage_time = 0
-        self.rotation = 0  # Para efecto de rotación
+        self.rotation = 0
 
     def update(self):
         self.rect.center = self.player.rect.center
-        self.rotation = (self.rotation + 1) % 360  # Rotación lenta
-        # self.image = pygame.transform.rotate(self.original_image, self.rotation) # Desactivado para evitar la rotación excesiva
+        self.rotation = (self.rotation + 1) % 360
+        self.image = pygame.transform.rotate(self.original_image, self.rotation)
         self.rect = self.image.get_rect(center=self.player.rect.center)
 
-    def draw_custom(self, surface, offset): # <--- CORREGIDO: RECIBE Y USA EL OFFSET
+    def draw_custom(self, surface, offset): # <--- CORRECCIÓN CLAVE
         if self.ability_type == "fire":
             # PULSO DE TAMAÑO
             pulse = 0.95 + 0.05 * math.sin(pygame.time.get_ticks() * 0.008)
@@ -68,26 +58,24 @@ class AreaAbility(pygame.sprite.Sprite):
             scaled = pygame.transform.scale(self.original_image, (current_size, current_size))
             
             # Calcular la posición en pantalla APLICANDO EL OFFSET
-            # Se usa el centro del jugador menos el offset de la cámara
             scaled_rect = scaled.get_rect(center=(self.rect.centerx - offset.x, self.rect.centery - offset.y))
             surface.blit(scaled, scaled_rect)
             
     def check_damage(self, enemies_group):
+        # ... (Mantener la lógica de daño) ...
         current_time = pygame.time.get_ticks()
         if current_time - self.last_damage_time > self.cooldown:
             self.last_damage_time = current_time
             
-            # Colisiones: solo revisa si el centro del enemigo está dentro del radio
             hit_enemies = []
-            radius_squared = self.damage_radius**2
-            
             for enemy in enemies_group:
-                distance_sq = (self.rect.centerx - enemy.rect.centerx)**2 + \
-                              (self.rect.centery - enemy.rect.centery)**2
-                
-                if distance_sq < radius_squared:
+                distance = self.rect.centerx - enemy.rect.centerx
+                distance_y = self.rect.centery - enemy.rect.centery
+                if math.sqrt(distance**2 + distance_y**2) < self.damage_radius:
                     hit_enemies.append(enemy)
-            
-            # Aplicar daño
+
+            # Aplica el daño
+            from experience_orb import ExperienceOrb
             for enemy in hit_enemies:
-                enemy.take_damage(self.damage)
+                if enemy.take_damage(self.damage):
+                    ExperienceOrb(enemy.rect.centerx, enemy.rect.centery, 1, (enemy.groups()[0].sprites()[0].orbs_group,))

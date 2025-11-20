@@ -1,5 +1,4 @@
-# bumerang.py - VERSIÓN CORREGIDA
-
+# bumerang.py
 import pygame
 import math
 import random
@@ -8,20 +7,13 @@ import sys
 from config import TILE_SIZE
 
 # =======================================================
-# FUNCIÓN DE RUTA ROBUSTA (Añadida para PyInstaller)
+# FUNCIÓN DE RUTA ROBUSTA
 # =======================================================
 def resource_path(relative_path):
-    """
-    Función que maneja rutas de recursos para desarrollo local o
-    ejecutables empaquetados por PyInstaller.
-    """
     try:
-        # sys._MEIPASS es la ruta de la carpeta temporal que PyInstaller crea
         base_path = sys._MEIPASS
     except Exception:
-        # Si no está empaquetado (se ejecuta localmente), usa la ruta actual
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 # =======================================================
 
@@ -32,18 +24,16 @@ class Bumerang(pygame.sprite.Sprite):
         self.player = player
         self.damage = damage
         self.speed = speed
-        self.lifetime_max = lifetime # Duración de la fase de ida (en frames)
+        self.lifetime_max = lifetime
         
-        # 1. Configuración Visual (Carga del PNG y ESCALADO)
+        # 1. Configuración Visual (Usando resource_path)
         SPRITE_SIZE = TILE_SIZE 
 
         try:
-            # Usa resource_path para la carga
             original_image = pygame.image.load(resource_path("assets/sprites/bumerang.png")).convert_alpha()
             self.image = pygame.transform.scale(original_image, (SPRITE_SIZE, SPRITE_SIZE))
             self.original_image = self.image.copy() # Copia para rotación
         except pygame.error:
-            # Fallback
             self.image = pygame.Surface((SPRITE_SIZE, SPRITE_SIZE), pygame.SRCALPHA)
             self.image.fill((0, 0, 0, 0))
             pygame.draw.rect(self.image, (255, 255, 0), (0, 0, SPRITE_SIZE, SPRITE_SIZE))
@@ -53,12 +43,11 @@ class Bumerang(pygame.sprite.Sprite):
         
         # 2. Lógica de Movimiento
         self.pos = pygame.math.Vector2(self.rect.center)
-        self.direction = player.last_move_direction if player.last_move_direction.length_squared() > 0 else pygame.math.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize()
-        
+        self.direction = pygame.math.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize()
+        self.returning = False 
         self.timer = 0
-        self.returning = False
-        self.has_hit = False # Para saber si golpeó en la fase de ida o vuelta
-        self.rotation_angle = 0 # Para rotación visual
+        self.has_hit = False # Solo puede golpear una vez por fase (ida o vuelta)
+        self.rotation_angle = 0
         
     def update(self):
         self.timer += 1
@@ -76,8 +65,8 @@ class Bumerang(pygame.sprite.Sprite):
             
             if self.timer >= self.lifetime_max:
                 self.returning = True
-                self.timer = 0 
-                self.has_hit = False # IMPORTANTE: Reiniciar has_hit para la fase de vuelta
+                self.timer = 0
+                self.has_hit = False
                 
         else:
             # Fase 2: Regresar
@@ -85,26 +74,21 @@ class Bumerang(pygame.sprite.Sprite):
             to_player = player_pos - self.pos
             
             if to_player.length_squared() > 0:
-                # Normalizar la dirección hacia el jugador
                 to_player = to_player.normalize()
                 self.pos += to_player * self.speed
                 
                 # Comprobar si ha llegado al jugador
                 if self.pos.distance_to(player_pos) < TILE_SIZE / 2: 
-                    self.kill() # Eliminar al volver
+                    self.kill()
             else:
-                 self.kill() # Si no hay distancia (está en el jugador), eliminar
+                 self.kill()
 
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
     def check_hit(self, enemies_group):
-        """Revisa colisiones con enemigos y si golpea, establece la bandera has_hit=True."""
-        # Solo chequea la colisión si no ha golpeado en la fase actual
-        if not self.has_hit:
-            hit_list = pygame.sprite.spritecollide(self, enemies_group, False)
-            if hit_list:
-                enemy = hit_list[0] # Solo golpea al primero en la lista
-                if enemy.take_damage(self.damage):
-                    # Generar orbe, si es necesario, debería ser manejado por la clase que llama a check_hit
-                    pass
-                self.has_hit = True # Impide que golpee a más enemigos en esta fase (ida o vuelta)
+        hit_list = pygame.sprite.spritecollide(self, enemies_group, False)
+        if hit_list and not self.has_hit:
+            self.has_hit = True
+            enemy = hit_list[0]
+            return [enemy]
+        return []

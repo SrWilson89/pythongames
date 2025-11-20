@@ -1,0 +1,6 @@
+2025-11-17 13:31:58,572 - ERROR - Excepción no controlada
+Traceback (most recent call last):
+  File "C:\Users\srwil\Documents\VSC\python\vampire2\main.py", line 89, in <module>
+    BACKGROUND_TILE = pygame.image.load(resource_path("assets/background/tile.png")).convert()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\srwil\Documents\VSC\python\vampire2\assets/background/tile.png'.
